@@ -83,6 +83,7 @@ The visual editor exposes every option below. Direct YAML editing also works.
 | `building-height` | 3-10 m | `6` | Fixed prism height used when `building-real-size` is `false`. |
 | `window-sill-height` | 0-50 m | `0` | Physical height from the floor to the bottom edge of the window glass, used for sun timing and indoor beam/shadow calculations. The window marker on the building is schematic. YAML values are always metres; the visual editor displays metres or inches according to Home Assistant's configured length unit. |
 | `curtain-max-depth` | 0-50 m | `1` | Maximum simulated direct-sun distance along the floor. The card draws a top-down curtain overlay sized to keep the unobstructed floor beam within this depth; it does not control a Home Assistant cover. |
+| `window-azimuth-arrow` | boolean | `false` | Show an arrow from the home window pointing outward in its azimuth direction. |
 | `building-cluster-radius` | 0-100 m | `0` | Buildings within this distance of the home (or touching it) join the home group at full opacity. Use it to attach garages / verandas to the house. |
 | `building-opacity` | 0-1 | `0.5` | Opacity of the surrounding buildings. The home (and its cluster) always stays at full opacity. |
 | `building-color` | color | `grey` | Optional base tone for the surrounding buildings (an HA colour token or a hex). |

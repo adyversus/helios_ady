@@ -981,7 +981,8 @@ export function renderBuildings(
     sunAzimuth       = 180,
     windowSillHeightM = 0,
     horizonAltitude  = 0,
-    curtainMaxDepthM = 1
+    curtainMaxDepthM = 1,
+    windowAzimuthArrow = false
 ): SceneShape[]
 {
     //Horizontal direction TOWARDS the sun, and how much sun there is to give. The fade tracks the shadows' own, so
@@ -1212,6 +1213,52 @@ export function renderBuildings(
                             stroke: 'rgba(228, 247, 252, 0.95)',
                             strokeWidth: '1.2',
                         });
+                    }
+                    if (windowAzimuthArrow)
+                    {
+                        const center = schematicWindow.corners.reduce(
+                            (sum, corner) => [sum[0] + corner[0] / 4, sum[1] + corner[1] / 4, sum[2] + corner[2] / 4],
+                            [0, 0, 0] as [number, number, number]
+                        );
+                        const azimuth = schematicWindow.azimuthDeg * DEG;
+                        const start = cam.project3(center[0], center[1], center[2]);
+                        const end = cam.project3(
+                            center[0] + Math.sin(azimuth) * 1.2,
+                            center[1] + Math.cos(azimuth) * 1.2,
+                            center[2]
+                        );
+                        let dx = end.x - start.x;
+                        let dy = end.y - start.y;
+                        let screenLength = Math.hypot(dx, dy);
+                        if (screenLength <= 0.5)
+                        {
+                            const bearing = cam.bearingDeg * DEG;
+                            const tilt = cam.tiltDeg * DEG;
+                            dx = Math.sin(azimuth) * Math.cos(bearing) + Math.cos(azimuth) * Math.sin(bearing);
+                            dy = (Math.sin(azimuth) * Math.sin(bearing) - Math.cos(azimuth) * Math.cos(bearing)) * Math.cos(tilt);
+                            screenLength = Math.hypot(dx, dy);
+                        }
+                        if (screenLength > 0.5)
+                        {
+                            const ux = dx / screenLength;
+                            const uy = dy / screenLength;
+                            const arrowLength = Math.max(26, screenLength);
+                            const endX = start.x + ux * arrowLength;
+                            const endY = start.y + uy * arrowLength;
+                            const headLength = Math.min(8, arrowLength * 0.4);
+                            const headWidth = headLength * 0.55;
+                            const headBaseX = endX - ux * headLength;
+                            const headBaseY = endY - uy * headLength;
+                            const sideX = -uy * headWidth;
+                            const sideY = ux * headWidth;
+                            windowShapes.push({
+                                tag: 'path',
+                                geom: `M${start.x.toFixed(1)},${start.y.toFixed(1)}L${endX.toFixed(1)},${endY.toFixed(1)}M${(headBaseX + sideX).toFixed(1)},${(headBaseY + sideY).toFixed(1)}L${endX.toFixed(1)},${endY.toFixed(1)}L${(headBaseX - sideX).toFixed(1)},${(headBaseY - sideY).toFixed(1)}`,
+                                fill: 'none',
+                                stroke: '#ffb84d',
+                                strokeWidth: '2',
+                            });
+                        }
                     }
                 }
                 //Sort key = the wall's NEAREST corner (max cameraZ, larger = nearer). On a concave footprint an

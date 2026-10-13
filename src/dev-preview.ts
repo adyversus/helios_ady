@@ -46,6 +46,7 @@ card.setConfig({
     'home-longitude': hass.config.longitude,
     'window-sill-height': 1.2,
     'curtain-max-depth': 1,
+    'window-azimuth-arrow': true,
     'chip-home-visible': false,
     'chip-production-visible': false,
     'chip-grid-visible': false,

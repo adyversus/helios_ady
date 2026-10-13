@@ -286,6 +286,7 @@ export class SceneRenderer
     private _buildings: Building[] = [];
     private _windowSillHeightM = 0;
     private _curtainMaxDepthM = 1;
+    private _windowAzimuthArrow = false;
     private _sun = { azimuth: 0, altitude: 0, horizonAltitude: 0 };
     private _growth = 1;
     //Home prism appearance (colour, squash multiplier). Empty colour falls back to palette.home.
@@ -618,6 +619,17 @@ export class SceneRenderer
         this.scheduleRedraw();
     }
 
+    public setWindowAzimuthArrow(enabled: boolean): void
+    {
+        if (this._windowAzimuthArrow === enabled)
+        {
+            return;
+        }
+        this._windowAzimuthArrow = enabled;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
     public setSun(azimuth: number, altitude: number, horizonAltitude = 0): void
     {
         this._sun = { azimuth, altitude, horizonAltitude };
@@ -861,7 +873,7 @@ export class SceneRenderer
             //The day/night atmosphere is the graded ground palette + the altitude-tinted buildings.
             this._sceneLayers.commit(
                 renderShadows(this.camera, drawn, this._sun, gradedShadow, this._palette.shadowOpacity),
-                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth, this._windowSillHeightM, this._sun.horizonAltitude, this._curtainMaxDepthM),
+                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth, this._windowSillHeightM, this._sun.horizonAltitude, this._curtainMaxDepthM, this._windowAzimuthArrow),
             );
         }
 

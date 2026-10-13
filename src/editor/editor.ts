@@ -1480,6 +1480,7 @@ export class HeliosCardEditor extends LitElement
                     />
                 </label>
                 <div class="hint">Maximum direct-sun distance along the floor. The shaded curtain shape is a simulation only and does not control a Home Assistant cover.</div>
+                ${this._renderToggle('window-azimuth-arrow', 'Show window azimuth arrow', 'Draw an arrow pointing outward from the home window in its azimuth direction.')}
                 ${this._renderSlider('display-radius', t.editor.displayRadius, MIN_DISPLAY_RADIUS_M, MAX_DISPLAY_RADIUS_M, 10, DEFAULT_DISPLAY_RADIUS_M, ' m')}
                 <div class="hint">${t.editor.displayRadiusHelp}</div>
                 ${this._renderSlider('building-count', t.editor.buildingCount, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT, 5, DEFAULT_BUILDING_COUNT)}

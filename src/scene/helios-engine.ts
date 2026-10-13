@@ -42,6 +42,7 @@ import
     buildingFixedHeightM,
     windowSillHeight,
     curtainMaxDepthM,
+    windowAzimuthArrowEnabled,
     buildingColorToken,
     mapThemeMode,
     mapLayerColor,
@@ -170,6 +171,7 @@ export class HeliosEngine
     //profile ALWAYS refines the sun gate (realism); `_horizonLineVisible` only toggles the drawn ridge line.
     private _horizonProfile: HorizonProfile | null = null;
     private _horizonLineVisible = true;
+    private _windowAzimuthArrowOverride: boolean | null = null;
     private _horizonAbort?: AbortController;
     //Deferred initial kick + bounded retry share one timer; the counter resets on a real new request (setHome).
     private _horizonTimer?: number;
@@ -719,6 +721,7 @@ export class HeliosEngine
         });
         this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
         this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
+        this._renderer.setWindowAzimuthArrow(windowAzimuthArrowEnabled(this.cfg));
         this._renderer.setCameraBearing(this._initialBearing());
         this._renderer.setCameraPitch(this._initialPitch());
         this._renderer.setZoom(sceneZoom(this.cfg));
@@ -2612,10 +2615,15 @@ export class HeliosEngine
         const prevRadius      = this._buildingRadiusMeters();
         const prevShadowOpa   = this._shadowOpacity();
         const prevShadowsOn   = this._shadowsEnabled();
+        const prevWindowArrow = windowAzimuthArrowEnabled(this.cfg);
         const prevAutoRotateOn = this.cfg['auto-rotate-enabled'] === true;
         const prevCameraLocked = this.isCameraLocked();
         const prevZoom         = sceneZoom(this.cfg);
         this.cfg = { ...cfg };
+        if (prevWindowArrow !== windowAzimuthArrowEnabled(this.cfg))
+        {
+            this._windowAzimuthArrowOverride = null;
+        }
 
         //Re-arm the auto-rotate rAF loop when the flags transition back to rotation-permitting (the loop
         //suspends itself when disabled to avoid a 60 Hz no-op tick).
@@ -2647,6 +2655,7 @@ export class HeliosEngine
 
         this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
         this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
+        this._renderer.setWindowAzimuthArrow(this.getWindowAzimuthArrowVisible());
 
         //Scene zoom: the renderer rescales its camera; the arc caches baked the old px-per-metre into their
         //samples and the scale memo, so they are dropped for the next projection pass.
@@ -2685,6 +2694,17 @@ export class HeliosEngine
         {
             this._renderForCurrentSelection();
         }
+    }
+
+    public getWindowAzimuthArrowVisible(): boolean
+    {
+        return this._windowAzimuthArrowOverride ?? windowAzimuthArrowEnabled(this.cfg);
+    }
+
+    public setWindowAzimuthArrowVisible(visible: boolean): void
+    {
+        this._windowAzimuthArrowOverride = visible;
+        this._renderer?.setWindowAzimuthArrow(visible);
     }
 
     public setSceneZoom(zoom: SceneZoom): void

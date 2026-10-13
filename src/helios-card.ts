@@ -19,6 +19,7 @@ import
     showHorizonLine,
     horizonLineColor,
     sceneZoom,
+    windowAzimuthArrowEnabled,
 } from './core/config/helios-config';
 import { chipSlotColor, chipSlotIcon } from './core/config/chip-appearance';
 import { buildDayProfile, daySlots, type ProfileStrand } from './data/period-totals/day-profile';
@@ -533,6 +534,12 @@ export class HeliosCard extends LitElement
     };
     private _onSceneZoomOut = (): void => this._changeSceneZoom(-1);
     private _onSceneZoomIn  = (): void => this._changeSceneZoom(1);
+    private _onWindowAzimuthArrowToggle = (): void =>
+    {
+        const enabled = !(this._engine?.getWindowAzimuthArrowVisible() ?? windowAzimuthArrowEnabled(this.config));
+        this._engine?.setWindowAzimuthArrowVisible(enabled);
+        this.requestUpdate();
+    };
 
     //Recorder period for the energy change-series: the user's display cadence capped per mode, so the month
     //window never pulls 5-min rows. Read by the fetch hosts (pv/grid/battery).
@@ -1747,6 +1754,7 @@ export class HeliosCard extends LitElement
         const timelineShown = hasHomeCoords && this._timeRange && showTimeline(this.config);
         const sceneZoomLevel = sceneZoom(this._engine?.cfg ?? this.config);
         const sceneZoomIndex = SCENE_ZOOM_LEVELS.indexOf(sceneZoomLevel);
+        const windowArrowVisible = this._engine?.getWindowAzimuthArrowVisible() ?? windowAzimuthArrowEnabled(this.config);
 
         return html`
             <ha-card class=${cardClasses} style=${cardStyle}>
@@ -1777,6 +1785,18 @@ export class HeliosCard extends LitElement
                             @pointerdown=${this._stopPointer}
                             @click=${this._onSceneZoomIn}
                         >+</button>
+                        <button
+                            class="helios-zoom-btn helios-arrow-toggle"
+                            type="button"
+                            title=${windowArrowVisible ? 'Hide window azimuth arrow' : 'Show window azimuth arrow'}
+                            aria-label=${windowArrowVisible ? 'Hide window azimuth arrow' : 'Show window azimuth arrow'}
+                            aria-pressed=${windowArrowVisible ? 'true' : 'false'}
+                            @pointerdown=${this._stopPointer}
+                            @click=${this._onWindowAzimuthArrowToggle}
+                        ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"></circle>
+                            <path d="m14.8 9.2-2.1 5.6-3.5-3.4z" fill="currentColor"></path>
+                        </svg></button>
                     </div>
                 ` : nothing}
 

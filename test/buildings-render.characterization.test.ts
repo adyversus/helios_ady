@@ -96,6 +96,31 @@ describe('buildings / shadows render (characterization)', () =>
         expect(curtainRendered).toBe(true);
     });
 
+    it('draws an outward azimuth arrow only when enabled', () =>
+    {
+        const building: Building = {
+            footprint: [[-4, -4], [4, -4], [4, 4], [-4, 4]],
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const cam = new SceneCamera();
+        cam.setPose(270, 45);
+        cam.setViewport(640, 420);
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        const defaultShapes = renderBuildings(cam, [building], 40, palette, 1);
+        const arrowShapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 180, 0, 0, 1, true);
+        const arrow = arrowShapes.find((shape) => shape.stroke === '#ffb84d');
+        const shaft = arrow?.geom.match(/^M(-?[\d.]+),(-?[\d.]+)L(-?[\d.]+),(-?[\d.]+)/);
+
+        expect(defaultShapes.some((shape) => shape.stroke === '#ffb84d')).toBe(false);
+        expect(arrow).toBeDefined();
+        expect(shaft).not.toBeNull();
+        expect(Math.hypot(Number(shaft?.[3]) - Number(shaft?.[1]), Number(shaft?.[4]) - Number(shaft?.[2]))).toBeGreaterThanOrEqual(25);
+    });
+
     it('renderBuildings output is stable for a fixed scene', () =>
     {
         const { cam, buildings, palette, home, sun } = scene();

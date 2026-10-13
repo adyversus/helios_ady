@@ -74,6 +74,8 @@ export interface HeliosConfig
     'window-sill-height'?:     unknown;
     //Maximum direct-sun penetration depth on the floor before the curtain simulation covers the window, in metres.
     'curtain-max-depth'?:      unknown;
+    //Show an arrow pointing outward from the home window along its azimuth. Defaults to false.
+    'window-azimuth-arrow'?:   unknown;
     //Cast-shadow master toggle. Default true.
     'shadows-enabled'?:        unknown;
     //Opacity 0..1 of the cast ground shadow layer. Default 0.32.
@@ -644,4 +646,11 @@ export function curtainMaxDepthM(config: HeliosConfig | undefined): number
         return DEFAULT_CURTAIN_MAX_DEPTH_M;
     }
     return clamp(parsed, 0, MAX_CURTAIN_DEPTH_M);
+}
+
+
+//Whether to draw the home window's outward-facing azimuth arrow.
+export function windowAzimuthArrowEnabled(config: HeliosConfig | undefined): boolean
+{
+    return config?.['window-azimuth-arrow'] === true;
 }

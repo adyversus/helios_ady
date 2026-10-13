@@ -172,6 +172,15 @@ export const heliosCardStyles = css`
         opacity: 0.4;
         cursor: default;
     }
+    .helios-zoom-btn svg
+    {
+        width: 18px;
+        height: 18px;
+    }
+    .helios-arrow-toggle[aria-pressed="true"]
+    {
+        color: var(--primary-color, #03a9f4);
+    }
 
 
     /*  ============================================================

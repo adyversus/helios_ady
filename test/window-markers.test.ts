@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMaxDepthM, windowSillHeight } from '../src/core/config/helios-config';
+import { curtainMaxDepthM, windowAzimuthArrowEnabled, windowSillHeight } from '../src/core/config/helios-config';
 import {
     centeredWindowOnFacade,
     schematicWindowOnFacade,
@@ -188,5 +188,15 @@ describe('curtainOverlayCorners', () =>
         expect(overlay?.[0][2]).toBeCloseTo(0.577, 2);
         expect(overlay?.[2][2]).toBeCloseTo(1.5);
         expect(curtainOverlayCorners(window, 0)).toBeNull();
+    });
+});
+
+describe('windowAzimuthArrowEnabled config', () =>
+{
+    it('is disabled unless explicitly enabled', () =>
+    {
+        expect(windowAzimuthArrowEnabled(undefined)).toBe(false);
+        expect(windowAzimuthArrowEnabled({ 'window-azimuth-arrow': false })).toBe(false);
+        expect(windowAzimuthArrowEnabled({ 'window-azimuth-arrow': true })).toBe(true);
     });
 });
