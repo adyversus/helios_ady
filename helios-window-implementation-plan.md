@@ -1,68 +1,97 @@
-# Window Rendering Implementation Plan
 
-## Goal
+# Multi-Window Implementation Plan
 
-Draw a window as a physical detail on the exterior facade of a selected Helios building. Deliver it in two stages: first a centered window with internal default dimensions and a configurable sill height; then configurable length, width, and azimuth.
+## Scope
 
-## Design Decisions
+Implement the behavior in [window-definition-spec.md](window-definition-spec.md): multiple configurable windows on the home building, each with independent azimuth, facade placement, curtain evaluation, button, and details. Keep one shared calculation path, one shared window renderer, and one reusable curtain-button component.
 
-- A window is a 3D rectangle attached to a building wall, not a screen-space HUD element.
-- In Stage 1, the selected target is the home prism identified by `Building.isHome`. If mapped geometry is unavailable, the synthetic rectangle remains a visual proxy; it is not claimed to represent the real building's position or footprint. Selecting arbitrary neighboring buildings is deferred because the current model has no stable building ID.
-- `length` means horizontal span along the facade. `width` means vertical glass height. `azimuth` is the outward-facing direction, clockwise from north.
-- Stage 1 centers the window horizontally on its selected facade. Its bottom edge is set by `window-sill-height`, defaulting to floor level; glass height remains an independent internal default.
-- Stage 1 exposes `window-sill-height` from 0 to 50 m, measured from the floor to the bottom edge of the glass. Config/YAML values are metres; the editor displays metres for metric HA users and inches for imperial users.
-- Stage 1 exposes `curtain-max-depth` from 0 to 50 m (default 1 m) and shows a read-only `Curtain` chip from 0% open to 100% open. It simulates cover position only; it never calls a cover service.
-- Stage 1 uses a fixed default azimuth of `272°` to select the nearest matching exterior facade on the outer ring. Courtyard rings are not candidates; walls more than 30° away do not receive a window.
-- Stage 2 uses azimuth to select the exterior wall whose outward normal most closely matches the configured direction. It does not rotate a window away from the wall plane.
-- Along-facade offset and adjustable glass height are out of scope initially; facade-center placement remains the default.
+V1 targets `building: home` only. All windows use the global `window-sill-height`, so they share one vertical level. A missing `windows` key adapts the current implicit window into the same pipeline; an explicit empty list means no windows.
 
-## Stage 1: Centered Default Window
+## Architecture Contracts
 
-1. **Resolve the target.** Use the home prism identified by `isHome`. When the home is synthetic, use its rectangle strictly as a visual facade proxy.
-2. **Add sill configuration.** Add a meter-based `window-sill-height` value, default 0 and clamped to 0-50 m. The editor shows metres or inches according to HA's length system; conversion happens at the editor boundary.
-3. **Build facade geometry.** Use a pure geometry helper to choose the outer-ring wall nearest the fixed `272°` outward azimuth and return a centered window plane in local east/north/up metres. Keep sill height independent from glass height; omit the window if the fixed glass height cannot fit above the sill.
-4. **Render with the building.** Integrate the projected window into `renderBuildings()` in `src/scene/buildings.ts`. Project its corners with the same `SceneCamera` as the wall, clip it to the card bounds, and attach its shape immediately after its host wall in the existing far-to-near face ordering. This keeps the wall behind the window and nearer buildings in front of it.
-5. **Style the detail.** Draw a contrasting glass pane with a light frame. Apply a very small outward wall offset to avoid z-fighting; do not append new SVG nodes per frame.
-6. **Test the prototype.** Add unit tests for azimuth selection, facade midpoint, dimension clamping, sill placement, outward offset, and camera projection. Update the building-render characterization test for the added home-wall detail.
+- `core/config/helios-config.ts` normalizes raw YAML into typed window definitions and reports config errors; one pure scene calculation module owns facade resolution, geometry, overlap, exposure, curtain values, and world-space arrow direction.
+- A single reusable window renderer projects, clips, and draws every window. `renderBuildings()` groups windows by host wall and inserts returned shapes into that wall's existing depth slot.
+- A single reusable curtain-button component is generated from window definitions. Every button shows only its window's label and telemetry and selects details by stable window `id`.
+- Scene rendering and the UI consume the same per-window evaluation result; neither may independently recompute window values.
+- Preserve the current painter ordering and occlusion: windows stay attached to their host wall and nearer buildings can cover them.
 
-### Stage 1 Acceptance Criteria
+## Implementation Sequence
 
-- Exactly one window is rendered on the mapped home building's exterior wall.
-- It is centered on the wall, remains attached while zooming and rotating, and is hidden when its host wall is back-facing or occluded.
-- Nearby buildings can still occlude it; it does not paint over a closer facade.
-- Changing sill height moves the glass bottom without changing glass height, and invalid values resolve safely within 0-50 m.
-- If no mapped home footprint is available, the window still renders on the synthetic rectangle, with no claim of geographic facade accuracy.
+### 1. Lock Existing Behavior
 
-## Stage 2: Configurable Window Geometry
+- Preserve current single-window output as a characterization baseline: facade attachment, clipping, occlusion, exposure colors, curtain overlay, arrow, and camera behavior.
+- Record legacy behavior for `window-sill-height`, `curtain-max-depth`, and `window-azimuth-arrow`.
 
-1. Preserve stable source IDs from OpenFreeMap through `RawBuilding` and interpreted/merged building geometry, so Stage 2 can identify non-home targets without relying on array order.
-2. Add a typed `windows` config entry in `src/core/config/helios-config.ts` with a building key and `length`, `width`, and `azimuth` values. Keep validation/coercion at the config boundary, matching current Helios conventions.
-3. Include the windows config in `VISUAL_CONFIG_KEYS` in `src/card/init.ts`, so edits update the live renderer without rebuilding unrelated data.
-4. Add editor controls for adding/removing a window and editing its target, length, width, and azimuth. Keep the centered placement from Stage 1 unless optional placement controls are introduced later.
-5. Match azimuth against exterior-edge outward normals using angular distance. Define a tolerance; if no facade matches or the window does not fit, report the issue and do not render a misplaced window.
-6. Document the YAML form and units in `docs/CONFIGURATION.md`.
-7. Add config validation tests, azimuth-to-facade tests (including north wraparound), fit/error tests, and editor/live-update coverage. Verify multiple windows on one building and windows on separate buildings.
+**Gate:** Focused existing window and building-render tests pass before refactoring.
 
-### Stage 2 Acceptance Criteria
+### 2. Define and Normalize Window Inputs
 
-- Configured `length` and `width` update the rendered window dimensions in metres.
-- `azimuth` selects a matching exterior facade and the window remains planar on that facade.
-- Invalid values, missing building keys, non-matching facades, and oversized windows are handled visibly and never render inside the building.
-- Live config edits update windows without refetching building footprints or restarting the engine.
+- Add typed `WindowDefinition` parsing and defaults in `core/config/helios-config.ts`; include optional `id`, `label`, `building: 'home'`, azimuth, dimensions, `along-facade`, and per-window curtain depth.
+- Convert absent `windows` to the legacy default and preserve an explicit empty list as no windows.
+- Validate IDs and values at the config boundary; keep all YAML dimensions in metres and convert only in editor controls.
+- Include `windows` in `VISUAL_CONFIG_KEYS` and add editor controls for label, azimuth, dimensions, placement, and curtain depth. Target `home` only in V1.
 
-## Existing Code Paths
+**Gate:** Parser/config tests cover legacy fallback, empty list, defaults, duplicate IDs, invalid values, and live updates.
 
-- Config schema and resolvers: `src/core/config/helios-config.ts`
-- Raw/interpreted footprints and depth-sorted wall shapes: `src/scene/buildings.ts`
-- Scene projection and camera zoom: `src/scene/projection.ts`
-- Stable SVG node updates: `src/scene/scene-dom.ts`
-- Engine building fetch and interpretation: `src/scene/helios-engine.ts`
-- Visual-config update signature: `src/card/init.ts`
-- Visual editor: `src/editor/editor.ts`
-- Existing building render tests: `test/buildings-render.characterization.test.ts`
+### 3. Centralize Window Calculations
 
-## Risks To Resolve During Stage 1
+- Keep one authoritative pure scene calculation module for facade resolution, placement/overlap, world-space geometry, exposure, curtain values, arrow direction, and geometry diagnostics.
+- Resolve each azimuth to its nearest exterior edge, including opposite sides; report differences over 30 degrees as warnings rather than omitting the window.
+- Use the shared global sill height. Allow same-facade windows to touch or have positive gaps; reject actual overlap and geometry that cannot fit.
+- Return resolved geometry and evaluations keyed by stable window ID for both scene rendering and UI.
 
-- The current `Building` model stores a footprint and height but not a stable ID or facade. Stage 1 avoids this limitation by targeting `isHome`; Stage 2 must not rely on array indices, since sorting, filtering, and merging can change them.
-- Concave footprints and simplified collinear edges need tests so azimuth matching is deterministic and does not use a courtyard edge.
-- An untagged/fallback home has a synthetic footprint; it can support a demo window, but the editor should distinguish it from a real mapped building.
+**Gate:** Pure tests cover opposite facades, north wraparound, mismatch warnings, shared elevation, touching/gapped/overlapping placement, fit, and independent telemetry.
+
+### 4. Cache Geometry and Evaluation
+
+- Cache world-space geometry by explicit building-geometry and normalized-window-config revisions; do not serialize full inputs per frame.
+- Cache time-dependent evaluations by window ID, evaluation time, and relevant input revisions. Keep the evaluation cache bounded.
+- Camera pose, viewport, zoom, and pointer changes must not invalidate geometry or sun/curtain calculations; projection and drawing still use the current camera.
+- Invalidate geometry plus dependent evaluations on building/window-definition changes. Invalidate evaluations on sun/time, horizon, occluder, sill, or curtain-setting changes.
+- Benchmark 1, 4, 8, and 16 windows against the maximum building count, then set and document the supported window limit from target-device measurements.
+
+**Gate:** Cache tests cover camera-only reuse, correct invalidation, and bounded retention. Record benchmark results and the chosen window limit.
+
+### 5. Add One Reusable Window Renderer
+
+- Implement one `renderWindow`/`renderWindows` path taking resolved geometry, canonical evaluation, camera, clip bounds, and arrow visibility.
+- Move pane, exposure cells, curtain overlay, frame, and arrow shape construction into that shared path; do not branch on window IDs.
+- Have `renderBuildings()` group windows by host wall and insert returned shapes in that wall's existing depth slot.
+- Preserve culling, clipping, depth order, nearby-building occlusion, and stable SVG node updates.
+
+**Gate:** Render tests cover multiple/opposite facades, direction-specific arrows, host-wall ordering, and occlusion.
+
+### 6. Wire Per-Window Curtain Telemetry and Details
+
+- Query the canonical evaluation by window ID and selected time; do not keep a separate global calculation for configured windows.
+- Generate one curtain button per definition through one reusable component. Keep labels, values, and selection keyed by ID.
+- Preserve current curtain-chip activation behavior while opening the selected window's timeline/details. Buttons remain informational and never actuate a cover.
+- Show configured/resolved azimuth, mismatch, dimensions, shared sill height, exposure, curtain values, and max depth.
+
+**Gate:** UI tests cover button count, value isolation, selection, time updates, invalid entries, reorder/removal, legacy behavior, and empty-list behavior.
+
+### 7. Document and Integrate
+
+- Update `docs/CONFIGURATION.md` with schema, defaults, shared sill level, mismatch warnings, labels, and legacy/empty-list behavior.
+- Verify live config edits update the renderer without re-fetching building data or restarting the engine.
+
+**Gate:** Full tests, `npm run typecheck`, lint, and production build pass. Verify a south/north multi-window scene, buttons, arrows, and per-window details in the dev preview.
+
+## Current Code Ownership
+
+- Config types and visual update keys: `src/core/config/helios-config.ts`, `src/card/init.ts`
+- Window geometry/exposure helpers: `src/scene/window-markers.ts`
+- Building interpretation, face ordering, and window insertion point: `src/scene/buildings.ts`
+- Camera projection and scene painting: `src/scene/projection.ts`, `src/scene/renderer.ts`, `src/scene/scene-dom.ts`
+- Engine time/config flow: `src/scene/helios-engine.ts`
+- Curtain chip and details UI: `src/helios-card.ts`, `src/hud/detail-panel.ts`, `src/charts/charts-generic.ts`
+- Editor: `src/editor/editor.ts`
+- Existing tests to extend: `test/window-markers.test.ts`, `test/buildings-render.characterization.test.ts`
+
+## Out of Scope for V1
+
+- Targeting arbitrary mapped buildings. The current render model merges footprints and lacks stable source IDs; add that identity pipeline before exposing non-home targets.
+- Physical curtain entities or cover-service calls.
+- Per-window sill levels; all V1 windows share the global sill height.
+- Silently omitting a window only because its requested azimuth is more than 30 degrees from the selected wall. Always use the nearest wall and surface the mismatch.
+
