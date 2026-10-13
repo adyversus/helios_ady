@@ -24,6 +24,8 @@ import { pointsAttr, clipPolygon, cardClipRect, pointInPolygon, type Point, type
 import { fetchOfmBuildingRings, type OfmRing } from './openfreemap';
 import {
     centeredWindowOnFacade,
+    schematicWindowOnFacade,
+    windowPointAt,
     DEFAULT_WINDOW_AZIMUTH_DEG,
     evaluateWindowSunExposure,
     calculateCurtainClosedFraction,
@@ -1066,6 +1068,9 @@ export function renderBuildings(
         const homeWindow = b.isHome
             ? centeredWindowOnFacade(fp, h, DEFAULT_WINDOW_AZIMUTH_DEG, windowSillHeightM * growth * (home.growth ?? 1))
             : null;
+        const schematicWindow = b.isHome
+            ? schematicWindowOnFacade(fp, h, DEFAULT_WINDOW_AZIMUTH_DEG)
+            : null;
 
         //Emit each visible wall into the shared face list (sorted globally below), for every ring of the block.
         //Every vertex is projected ONCE per frame, base and roof, and the depth comes along with the pixel: the
@@ -1135,7 +1140,7 @@ export function renderBuildings(
                 }
                 const wall: SceneShape = { tag: 'polygon', geom: pointsAttr(wq), fill: wallFill, stroke, strokeWidth: strokeW };
                 let windowShapes: SceneShape[] | undefined;
-                if (homeWindow && ring === fp && i === homeWindow.edgeIndex)
+                if (homeWindow && schematicWindow && ring === fp && i === homeWindow.edgeIndex)
                 {
                     const exposure = evaluateWindowSunExposure(
                         homeWindow, windowOccluders, sunAzimuth, altitude, horizonAltitude
@@ -1145,7 +1150,13 @@ export function renderBuildings(
                     );
                     windowShapes = exposure.cells.flatMap((cell) =>
                     {
-                        const projectedCell = cell.corners.map(([east, north, up]) =>
+                        const schematicCorners = [
+                            windowPointAt(schematicWindow, cell.u0, cell.v0),
+                            windowPointAt(schematicWindow, cell.u1, cell.v0),
+                            windowPointAt(schematicWindow, cell.u1, cell.v1),
+                            windowPointAt(schematicWindow, cell.u0, cell.v1),
+                        ];
+                        const projectedCell = schematicCorners.map(([east, north, up]) =>
                         {
                             const projected = cam.project3(east, north, up);
                             return [projected.x, projected.y] as Point;
@@ -1166,7 +1177,7 @@ export function renderBuildings(
                             strokeWidth: '0',
                         }];
                     });
-                    const curtainCorners = curtainOverlayCorners(homeWindow, curtainClosedFraction);
+                    const curtainCorners = curtainOverlayCorners(schematicWindow, curtainClosedFraction);
                     if (curtainCorners)
                     {
                         const projectedCurtain = curtainCorners.map(([east, north, up]) =>
@@ -1186,7 +1197,7 @@ export function renderBuildings(
                             });
                         }
                     }
-                    const projectedFrame = homeWindow.corners.map(([east, north, up]) =>
+                    const projectedFrame = schematicWindow.corners.map(([east, north, up]) =>
                     {
                         const projected = cam.project3(east, north, up);
                         return [projected.x, projected.y] as Point;

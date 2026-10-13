@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { curtainMaxDepthM, windowSillHeight } from '../src/core/config/helios-config';
 import {
     centeredWindowOnFacade,
+    schematicWindowOnFacade,
     calculateCurtainClosedFraction,
     curtainOverlayCorners,
     evaluateWindowSunExposure,
@@ -25,6 +26,21 @@ describe('centeredWindowOnFacade', () =>
         expect(window?.corners[1][1]).toBeCloseTo(-0.6);
         expect(window?.corners[0][2]).toBeCloseTo(0);
         expect(window?.corners[2][2]).toBeCloseTo(0.9);
+    });
+
+    it('centers the schematic marker independently of the physical sill height', () =>
+    {
+        const physicalWindow = centeredWindowOnFacade([
+            [-4, -4], [4, -4], [4, 4], [-4, 4],
+        ], 6, DEFAULT_WINDOW_AZIMUTH_DEG, 1.2);
+        const schematicWindow = schematicWindowOnFacade([
+            [-4, -4], [4, -4], [4, 4], [-4, 4],
+        ], 6);
+
+        expect(physicalWindow?.corners[0][2]).toBeCloseTo(1.2);
+        expect(schematicWindow?.corners[0][2]).toBeCloseTo(2.55);
+        expect(schematicWindow?.corners[2][2]).toBeCloseTo(3.45);
+        expect(schematicWindow?.edgeIndex).toBe(physicalWindow?.edgeIndex);
     });
 
     it('keeps glass height independent from the configured sill height', () =>
@@ -69,6 +85,7 @@ describe('windowSillHeight config', () =>
     {
         expect(windowSillHeight(undefined)).toBe(0);
         expect(windowSillHeight({ 'window-sill-height': 1.2 })).toBe(1.2);
+        expect(windowSillHeight({ 'window-sill-height': 0 })).toBe(0);
         expect(windowSillHeight({ 'window-sill-height': -1 })).toBe(0);
         expect(windowSillHeight({ 'window-sill-height': 60 })).toBe(50);
         expect(windowSillHeight({ 'window-sill-height': 'not a number' })).toBe(0);

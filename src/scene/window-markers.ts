@@ -15,6 +15,10 @@ export interface WindowSunCell
 {
     corners: [number, number, number][];
     sunlit:  boolean;
+    u0:      number;
+    u1:      number;
+    v0:      number;
+    v1:      number;
 }
 
 export interface WindowSunExposure
@@ -87,13 +91,13 @@ export function centeredWindowOnFacade(
     const outwardY = -tangentX;
     const length = Math.min(DEFAULT_WINDOW_LENGTH_M, edgeLength * 0.6);
     const height = Math.min(DEFAULT_WINDOW_HEIGHT_M, buildingHeight);
-    if (sillHeightM + height > buildingHeight)
+    const bottom = sillHeightM;
+    if (bottom + height > buildingHeight)
     {
         return null;
     }
     const centerX = (start[0] + end[0]) / 2 + outwardX * WALL_OFFSET_M;
     const centerY = (start[1] + end[1]) / 2 + outwardY * WALL_OFFSET_M;
-    const bottom = sillHeightM;
     const halfLength = length / 2;
 
     const leftX = centerX - tangentX * halfLength;
@@ -111,6 +115,14 @@ export function centeredWindowOnFacade(
             [leftX, leftY, bottom + height],
         ],
     };
+}
+
+export function schematicWindowOnFacade(
+    footprint: Point[], buildingHeight: number, azimuthDeg = DEFAULT_WINDOW_AZIMUTH_DEG
+): CenteredWindow | null
+{
+    const height = Math.min(DEFAULT_WINDOW_HEIGHT_M, buildingHeight);
+    return centeredWindowOnFacade(footprint, buildingHeight, azimuthDeg, (buildingHeight - height) / 2);
 }
 
 const WINDOW_SAMPLE_COLUMNS = 5;
@@ -147,18 +159,18 @@ export function evaluateWindowSunExposure(
             const v0 = row / WINDOW_SAMPLE_ROWS;
             const v1 = (row + 1) / WINDOW_SAMPLE_ROWS;
             const corners = [
-                windowPoint(window, u0, v0),
-                windowPoint(window, u1, v0),
-                windowPoint(window, u1, v1),
-                windowPoint(window, u0, v1),
+                windowPointAt(window, u0, v0),
+                windowPointAt(window, u1, v0),
+                windowPointAt(window, u1, v1),
+                windowPointAt(window, u0, v1),
             ];
-            const sample = windowPoint(window, (u0 + u1) / 2, (v0 + v1) / 2);
+            const sample = windowPointAt(window, (u0 + u1) / 2, (v0 + v1) / 2);
             const sunlit = directSun && !sunRayBlocked(sample, sunDirection, occluders);
             if (sunlit)
             {
                 sunlitCount++;
             }
-            cells.push({ corners, sunlit });
+            cells.push({ corners, sunlit, u0, u1, v0, v1 });
         }
     }
 
@@ -214,14 +226,14 @@ export function curtainOverlayCorners(window: CenteredWindow, closedFraction: nu
     }
     const openFraction = 1 - coverage;
     return [
-        windowPoint(window, 0, openFraction),
-        windowPoint(window, 1, openFraction),
-        windowPoint(window, 1, 1),
-        windowPoint(window, 0, 1),
+        windowPointAt(window, 0, openFraction),
+        windowPointAt(window, 1, openFraction),
+        windowPointAt(window, 1, 1),
+        windowPointAt(window, 0, 1),
     ];
 }
 
-function windowPoint(window: CenteredWindow, u: number, v: number): [number, number, number]
+    export function windowPointAt(window: CenteredWindow, u: number, v: number): [number, number, number]
 {
     const bottomLeft = window.corners[0];
     const bottomRight = window.corners[1];

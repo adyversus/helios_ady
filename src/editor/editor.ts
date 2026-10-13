@@ -1467,7 +1467,7 @@ export class HeliosCardEditor extends LitElement
                         @change=${this._onWindowSillHeightChange}
                     />
                 </label>
-                <div class="hint">Height from the floor to the bottom edge of the glass area (the sill). Set to 0 (default) for floor-level windows or when unknown. Example: for a sill 1 m / 39 in above the floor, enter that value. Improves calculation accuracy for raised windows; without it, the blind closes slightly more than necessary. Range: 0-50 m / 0-1968 in. Window Height is measured from bottom to top of glass; these are independent measurements.</div>
+                <div class="hint">Physical sill height from the floor to the bottom edge of the glass. Used for sun timing and indoor beam/shadow calculations; the window marker on the building is schematic. A value of 0 (default) places the physical window at floor level. Range: 0-50 m / 0-1968 in.</div>
                 <label class="field">
                     <span class="label">Maximum Sunlight Depth (${sillUnit})</span>
                     <input
