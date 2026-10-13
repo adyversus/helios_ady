@@ -167,6 +167,46 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
     const days = windowDays(startMs, endMs);
     const energy = (kwh: number): string => formatEnergyKwh(hass, kwh, dec, eu);
 
+    if (target === 'curtain')
+    {
+        const store = host._unifiedStore;
+        const engine = host._engine;
+        if (!store || !engine)
+        {
+            return [];
+        }
+        let min = Infinity;
+        let max = -Infinity;
+        let sum = 0;
+        let count = 0;
+        for (let index = 0; index < store.bucketsTotal; index++)
+        {
+            const tMs = store.storeStartMs + (index + 0.5) * store.stepMs;
+            if (tMs < startMs || tMs > endMs)
+            {
+                continue;
+            }
+            const value = engine.getCurtainOpenPercent(new Date(tMs));
+            if (value === null)
+            {
+                continue;
+            }
+            min = Math.min(min, value);
+            max = Math.max(max, value);
+            sum += value;
+            count++;
+        }
+        if (count === 0)
+        {
+            return [];
+        }
+        return [
+            { label: 'Maximum open', value: `${Math.round(max)}%` },
+            { label: 'Average open', value: `${Math.round(sum / count)}%` },
+            { label: 'Minimum open', value: `${Math.round(min)}%` },
+        ];
+    }
+
     //Irradiance is weather, not a period aggregation metric: aggregate the store's own W/m2 series + read the astro
     //from the sun scene. Everything else routes through buildPeriodData so it matches the period total exactly.
     if (target === 'irradiance')
@@ -332,7 +372,7 @@ export function renderDetailPanel(host: DetailHost): TemplateResult | typeof not
     const t = pickTranslations(host.hass?.language);
     const periodLabel = t.period[host._timelineMode];
     return html`
-        <div class="detail-panel">
+        <div id="helios-detail-panel" class="detail-panel">
             ${periodLabel ? html`<div class="dp-title">${periodLabel}</div>` : nothing}
             ${metrics.map(m => html`
                 <div class="dp-row ${m.label ? 'dp-row-device' : ''}">
@@ -347,3 +387,4 @@ export function renderDetailPanel(host: DetailHost): TemplateResult | typeof not
         </div>
     `;
 }
+

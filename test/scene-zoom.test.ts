@@ -13,10 +13,14 @@ describe('sceneZoom', () =>
         expect(sceneZoom({ 'scene-zoom': null } as any)).toBe(1);
     });
 
-    it('accepts the three levels as numbers or as the editor\'s strings', () =>
+    it('accepts the five levels as numbers or as the editor\'s strings', () =>
     {
+        expect(sceneZoom({ 'scene-zoom': 0.5 } as any)).toBe(0.5);
+        expect(sceneZoom({ 'scene-zoom': 0.75 } as any)).toBe(0.75);
         expect(sceneZoom({ 'scene-zoom': 1.5 } as any)).toBe(1.5);
         expect(sceneZoom({ 'scene-zoom': 2 } as any)).toBe(2);
+        expect(sceneZoom({ 'scene-zoom': '0.5' } as any)).toBe(0.5);
+        expect(sceneZoom({ 'scene-zoom': '0.75' } as any)).toBe(0.75);
         expect(sceneZoom({ 'scene-zoom': '1.5' } as any)).toBe(1.5);
         expect(sceneZoom({ 'scene-zoom': '2' } as any)).toBe(2);
         expect(sceneZoom({ 'scene-zoom': '1' } as any)).toBe(1);

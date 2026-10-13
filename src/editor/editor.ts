@@ -20,6 +20,8 @@ import
     DEFAULT_BUILDING_COUNT,
     MIN_BUILDING_COUNT,
     MAX_BUILDING_COUNT,
+    MAX_CURTAIN_DEPTH_M,
+    MAX_WINDOW_SILL_HEIGHT_M,
     FIXED_BUILDING_HEIGHT_M,
     MIN_BUILDING_HEIGHT_M,
     MAX_BUILDING_HEIGHT_M,
@@ -46,8 +48,11 @@ import
     mapLayerVisible,
     mapColorKey,
     mapShowKey,
+    windowSillHeight,
+    curtainMaxDepthM,
     type MapThemeMode,
 } from '../core/config/helios-config';
+import { INCHES_PER_METER } from '../core/config/constants';
 import { CHIP_SLOTS, chipSlotColor, chipSlotIcon, type ChipSlot } from '../core/config/chip-appearance';
 import { defaultGroundPalette, GROUND_LAYER_KEYS, type GroundLayerKey } from '../scene/ground-render';
 import { deviceColorByIndex, isDarkFromCss } from '../core/format/format';
@@ -580,6 +585,42 @@ export class HeliosCardEditor extends LitElement
         {
             this._numField(key, e);
         }
+    };
+    private _onWindowSillHeightChange = (e: Event): void =>
+    {
+        const input = e.currentTarget as HTMLInputElement;
+        const raw = input.value.trim();
+        if (raw === '')
+        {
+            this._update('window-sill-height', undefined);
+            return;
+        }
+        const value = Number(raw);
+        const imperial = this.hass?.config?.unit_system?.length === 'mi';
+        const max = imperial ? Math.floor(MAX_WINDOW_SILL_HEIGHT_M * INCHES_PER_METER) : MAX_WINDOW_SILL_HEIGHT_M;
+        if (!Number.isFinite(value) || value < 0 || value > max)
+        {
+            return;
+        }
+        this._update('window-sill-height', imperial ? value / INCHES_PER_METER : value);
+    };
+    private _onCurtainMaxDepthChange = (e: Event): void =>
+    {
+        const input = e.currentTarget as HTMLInputElement;
+        const raw = input.value.trim();
+        if (raw === '')
+        {
+            this._update('curtain-max-depth', undefined);
+            return;
+        }
+        const value = Number(raw);
+        const imperial = this.hass?.config?.unit_system?.length === 'mi';
+        const max = imperial ? Math.floor(MAX_CURTAIN_DEPTH_M * INCHES_PER_METER) : MAX_CURTAIN_DEPTH_M;
+        if (!Number.isFinite(value) || value < 0 || value > max)
+        {
+            return;
+        }
+        this._update('curtain-max-depth', imperial ? value / INCHES_PER_METER : value);
     };
     private _onNumSliderInput = (e: Event): void =>
     {
@@ -1255,6 +1296,18 @@ export class HeliosCardEditor extends LitElement
     {
         const c = this._cfg;
         const t = this._t();
+        const imperialLength = this.hass?.config?.unit_system?.length === 'mi';
+        const sillUnit = imperialLength ? 'in' : 'm';
+        const sillValueM = windowSillHeight(c);
+        const sillValue = imperialLength
+            ? Math.round(sillValueM * INCHES_PER_METER)
+            : Number(sillValueM.toFixed(2));
+        const sillMax = imperialLength ? Math.floor(MAX_WINDOW_SILL_HEIGHT_M * INCHES_PER_METER) : MAX_WINDOW_SILL_HEIGHT_M;
+        const curtainDepthM = curtainMaxDepthM(c);
+        const curtainDepthValue = imperialLength
+            ? Math.round(curtainDepthM * INCHES_PER_METER)
+            : Number(curtainDepthM.toFixed(2));
+        const curtainDepthMax = imperialLength ? Math.floor(MAX_CURTAIN_DEPTH_M * INCHES_PER_METER) : MAX_CURTAIN_DEPTH_M;
 
         // Placeholders for the home lat/lon override fields: show HA's configured home (so the user sees what they'd
         // override), falling back to Amsterdam when HA hasn't set one. Hint text only; empty input means "use HA's
@@ -1402,6 +1455,31 @@ export class HeliosCardEditor extends LitElement
 
                 <details class="advanced-section" data-section="buildings" ?open=${this._openSection === 'buildings'} @toggle=${this._onSectionToggleEvt}>
                     <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:office-building-outline"></ha-icon>${t.editor.buildingsSection}</summary>
+                <label class="field">
+                    <span class="label">Window Sill Height (${sillUnit})</span>
+                    <input
+                        type="number"
+                        min="0"
+                        max=${sillMax}
+                        step=${imperialLength ? '1' : '0.1'}
+                        placeholder=${imperialLength ? '47' : '1.2'}
+                        .value=${String(sillValue)}
+                        @change=${this._onWindowSillHeightChange}
+                    />
+                </label>
+                <div class="hint">Height from the floor to the bottom edge of the glass area (the sill). Set to 0 (default) for floor-level windows or when unknown. Example: for a sill 1 m / 39 in above the floor, enter that value. Improves calculation accuracy for raised windows; without it, the blind closes slightly more than necessary. Range: 0-50 m / 0-1968 in. Window Height is measured from bottom to top of glass; these are independent measurements.</div>
+                <label class="field">
+                    <span class="label">Maximum Sunlight Depth (${sillUnit})</span>
+                    <input
+                        type="number"
+                        min="0"
+                        max=${curtainDepthMax}
+                        step=${imperialLength ? '1' : '0.1'}
+                        .value=${String(curtainDepthValue)}
+                        @change=${this._onCurtainMaxDepthChange}
+                    />
+                </label>
+                <div class="hint">Maximum direct-sun distance along the floor. The shaded curtain shape is a simulation only and does not control a Home Assistant cover.</div>
                 ${this._renderSlider('display-radius', t.editor.displayRadius, MIN_DISPLAY_RADIUS_M, MAX_DISPLAY_RADIUS_M, 10, DEFAULT_DISPLAY_RADIUS_M, ' m')}
                 <div class="hint">${t.editor.displayRadiusHelp}</div>
                 ${this._renderSlider('building-count', t.editor.buildingCount, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT, 5, DEFAULT_BUILDING_COUNT)}

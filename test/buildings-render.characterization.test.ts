@@ -37,6 +37,65 @@ function scene(): {
 
 describe('buildings / shadows render (characterization)', () =>
 {
+    it('renders the default-azimuth window on the synthetic home facade when that side is visible', () =>
+    {
+        const footprint: [number, number][] = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
+        const building: Building = {
+            footprint,
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        let windowRendered = false;
+
+        for (const bearing of [0, 90, 180, 270])
+        {
+            const cam = new SceneCamera();
+            cam.setPose(bearing, 45);
+            cam.setViewport(640, 420);
+            const shapes = renderBuildings(cam, [building], 40, palette, 1);
+            if (shapes.some((shape) => shape.strokeWidth === '1.2'))
+            {
+                windowRendered = true;
+                break;
+            }
+        }
+
+        expect(windowRendered).toBe(true);
+    });
+
+    it('draws the simulated curtain when direct sun exceeds the configured floor depth', () =>
+    {
+        const building: Building = {
+            footprint: [[-4, -4], [4, -4], [4, 4], [-4, 4]],
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        let curtainRendered = false;
+
+        for (const bearing of [0, 90, 180, 270])
+        {
+            const cam = new SceneCamera();
+            cam.setPose(bearing, 45);
+            cam.setViewport(640, 420);
+            const shapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 270, 1.2, 0, 1);
+            if (shapes.some((shape) => shape.fill === 'rgba(255, 255, 255, 0.96)'))
+            {
+                curtainRendered = true;
+                break;
+            }
+        }
+
+        expect(curtainRendered).toBe(true);
+    });
+
     it('renderBuildings output is stable for a fixed scene', () =>
     {
         const { cam, buildings, palette, home, sun } = scene();

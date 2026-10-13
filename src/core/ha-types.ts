@@ -16,11 +16,12 @@ export interface HassEntity
     last_updated?: string;
 }
 
-//The subset of HA's unit system the card reads. HA reports the display unit for each measurement family; only
-//temperature is consumed today (the readouts the card owns are otherwise its own configured units).
+//The subset of HA's unit system the card reads. HA reports the display unit for each measurement family; the
+//window editor uses length to show sill height in inches for imperial users and metres otherwise.
 export interface HassUnitSystem
 {
     temperature?: string;
+    length?:      string;
 }
 
 export interface HassConfig

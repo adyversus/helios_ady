@@ -16,6 +16,7 @@ import { sliceForRange } from '../data/unifiedStore';
 import { renderPvChart } from './charts-pv';
 import { CHART_W, CHART_H, emptyChartSvg, makeXOf, makeYOf } from './chart-scale';
 import { HOUR_MS } from '../core/config/constants';
+import { CURTAIN_COLOR } from '../scene/window-markers';
 
 
 //Production routes to its dedicated renderer (forecast + per-source breakdown + native-unit scaling); every
@@ -59,6 +60,10 @@ export function chartAccentColor(host: ChartHost, forTarget?: ChartTarget): stri
     if (target === 'humidity')
     {
         return chipSlotColor(el, host.config, 'humidity');
+    }
+    if (target === 'curtain')
+    {
+        return CURTAIN_COLOR;
     }
     if (target === 'cost')
     {
@@ -121,6 +126,10 @@ export function resolveStrandColour(host: ChartHost, sc: StrandColour): { colour
     if (sc.kind === 'token')
     {
         return { colour: chipSlotColor(el, host.config, sc.token) };
+    }
+    if (sc.kind === 'literal')
+    {
+        return { colour: sc.color };
     }
     if (sc.kind === 'device')
     {
@@ -226,6 +235,7 @@ function buildTargetSeries(
         host._gridImportChangeSeriesPerEntity, host._gridExportChangeSeriesPerEntity,
         host._batteryChargeChangeSeriesPerEntity, host._batteryDischargeChangeSeriesPerEntity,
         host._deviceChangeSeries,
+        host._engine,
     ];
     const cached = _targetSeriesCache.get(host);
     if (cached
@@ -455,6 +465,29 @@ function buildTargetSeriesUncached(
     else if (target === 'humidity')
     {
         series   = [{ pts: toPts(store.humidity), color: chipSlotColor(el, host.config, 'humidity') }];
+        fixedMin = 0;
+        fixedMax = 100;
+    }
+    else if (target === 'curtain')
+    {
+        const pts: { t: number; v: number }[] = [];
+        if (host._engine)
+        {
+            for (let index = 0; index < store.bucketsTotal; index++)
+            {
+                const tMs = store.storeStartMs + (index + 0.5) * store.stepMs;
+                if (tMs < startMs || tMs > endMsAbs)
+                {
+                    continue;
+                }
+                const value = host._engine.getCurtainOpenPercent(new Date(tMs));
+                if (value !== null)
+                {
+                    pts.push({ t: tMs, v: value });
+                }
+            }
+        }
+        series = [{ pts, color: CURTAIN_COLOR }];
         fixedMin = 0;
         fixedMax = 100;
     }

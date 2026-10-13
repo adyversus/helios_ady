@@ -284,7 +284,9 @@ export class SceneRenderer
     //home-position change landing while the previous tile grid is still fetching).
     private _groundToken = 0;
     private _buildings: Building[] = [];
-    private _sun = { azimuth: 0, altitude: 0 };
+    private _windowSillHeightM = 0;
+    private _curtainMaxDepthM = 1;
+    private _sun = { azimuth: 0, altitude: 0, horizonAltitude: 0 };
     private _growth = 1;
     //Home prism appearance (colour, squash multiplier). Empty colour falls back to palette.home.
     private _home: HomeAppearance = { growth: 1 };
@@ -594,9 +596,31 @@ export class SceneRenderer
         this.scheduleRedraw();
     }
 
-    public setSun(azimuth: number, altitude: number): void
+    public setWindowSillHeight(heightM: number): void
     {
-        this._sun = { azimuth, altitude };
+        if (this._windowSillHeightM === heightM)
+        {
+            return;
+        }
+        this._windowSillHeightM = heightM;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setCurtainMaxDepth(depthM: number): void
+    {
+        if (this._curtainMaxDepthM === depthM)
+        {
+            return;
+        }
+        this._curtainMaxDepthM = depthM;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setSun(azimuth: number, altitude: number, horizonAltitude = 0): void
+    {
+        this._sun = { azimuth, altitude, horizonAltitude };
         this.scheduleRedraw();
     }
 
@@ -813,7 +837,7 @@ export class SceneRenderer
         //and a revision bumped by setBuildings/setPalette), mirroring the ground compat path's own pose guard above.
         //Anything below the SVG that must run every frame (onAfterDraw) stays outside this gate.
         const scenePose = `${width}x${height}|${this.camera.zoom}|${this.camera.bearingDeg.toFixed(2)}|${this.camera.tiltDeg.toFixed(2)}`
-            + `|${this._sun.azimuth.toFixed(2)}|${this._sun.altitude.toFixed(2)}|${this._growth.toFixed(3)}`
+            + `|${this._sun.azimuth.toFixed(2)}|${this._sun.altitude.toFixed(2)}|${this._sun.horizonAltitude.toFixed(2)}|${this._growth.toFixed(3)}`
             + `|${this._home.color ?? ''}|${(this._home.growth ?? 1).toFixed(3)}|${this._sceneRev}`
             + `|${this._wxSat}|${this._wxBright}`;
         if (scenePose !== this._lastScenePose)
@@ -837,7 +861,7 @@ export class SceneRenderer
             //The day/night atmosphere is the graded ground palette + the altitude-tinted buildings.
             this._sceneLayers.commit(
                 renderShadows(this.camera, drawn, this._sun, gradedShadow, this._palette.shadowOpacity),
-                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth),
+                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth, this._windowSillHeightM, this._sun.horizonAltitude, this._curtainMaxDepthM),
             );
         }
 

@@ -22,6 +22,13 @@ import { tintedRgba, buildingColor } from '../core/render-kit/colors';
 import { mixHex, hexByte, rgbaHex } from '../core/render-kit/hex';
 import { pointsAttr, clipPolygon, cardClipRect, pointInPolygon, type Point, type ClipRect } from '../core/render-kit/geometry';
 import { fetchOfmBuildingRings, type OfmRing } from './openfreemap';
+import {
+    centeredWindowOnFacade,
+    DEFAULT_WINDOW_AZIMUTH_DEG,
+    evaluateWindowSunExposure,
+    calculateCurtainClosedFraction,
+    curtainOverlayCorners,
+} from './window-markers';
 import { DEG, SHADOW_FADE_DEG, MAX_SHADOW_M,
     FIXED_BUILDING_HEIGHT_M,
     MAX_BUILDING_COUNT,
@@ -969,7 +976,10 @@ export function renderBuildings(
     neighborOpacity = 0.25,
     home:            HomeAppearance = {},
     //Degrees from north, clockwise. Without it a wall cannot know whether it faces the light.
-    sunAzimuth       = 180
+    sunAzimuth       = 180,
+    windowSillHeightM = 0,
+    horizonAltitude  = 0,
+    curtainMaxDepthM = 1
 ): SceneShape[]
 {
     //Horizontal direction TOWARDS the sun, and how much sun there is to give. The fade tracks the shadows' own, so
@@ -1014,13 +1024,18 @@ export function renderBuildings(
     const nbLit     = mixHex(nb, '#000000', 0.04);
     const nbStroke  = mixHex(nb, '#000000', 0.30);
     const neighborOp = Math.max(0, Math.min(1, neighborOpacity));
+    const windowOccluders = buildings.map((building) => ({
+        footprint: building.footprint,
+        holes:     building.holes,
+        height:    building.height * growth * (building.isHome ? (home.growth ?? 1) : 1),
+    }));
 
     //One face list for EVERY building, home included: the scene paints by true depth, so a neighbour nearer the
     //camera than the home occludes it exactly as it would occlude another neighbour, and a farther one still
     //sits behind. `order` (paintOrder, already a global far-to-near topological sort) decides insertion order;
     //the stable sort below only re-settles it by the finer per-face depth, so a tie between two faces (touching
     //buildings sharing a wall depth exactly) keeps the topological order's answer instead of an arbitrary one.
-    const faces: { depth: number; shape: SceneShape; detail?: SceneShape }[] = [];
+    const faces: { depth: number; shape: SceneShape; detail?: SceneShape; details?: SceneShape[] }[] = [];
     for (const { index } of order)
     {
         const b  = buildings[index];
@@ -1048,6 +1063,9 @@ export function renderBuildings(
         }
         const strokeW   = b.isHome ? '1' : '0.4';
         const roofStrokeW = b.isHome ? '1' : '0.6';
+        const homeWindow = b.isHome
+            ? centeredWindowOnFacade(fp, h, DEFAULT_WINDOW_AZIMUTH_DEG, windowSillHeightM * growth * (home.growth ?? 1))
+            : null;
 
         //Emit each visible wall into the shared face list (sorted globally below), for every ring of the block.
         //Every vertex is projected ONCE per frame, base and roof, and the depth comes along with the pixel: the
@@ -1116,10 +1134,79 @@ export function renderBuildings(
                     continue;
                 }
                 const wall: SceneShape = { tag: 'polygon', geom: pointsAttr(wq), fill: wallFill, stroke, strokeWidth: strokeW };
+                let windowShapes: SceneShape[] | undefined;
+                if (homeWindow && ring === fp && i === homeWindow.edgeIndex)
+                {
+                    const exposure = evaluateWindowSunExposure(
+                        homeWindow, windowOccluders, sunAzimuth, altitude, horizonAltitude
+                    );
+                    const curtainClosedFraction = calculateCurtainClosedFraction(
+                        homeWindow, exposure, sunAzimuth, altitude, curtainMaxDepthM
+                    );
+                    windowShapes = exposure.cells.flatMap((cell) =>
+                    {
+                        const projectedCell = cell.corners.map(([east, north, up]) =>
+                        {
+                            const projected = cam.project3(east, north, up);
+                            return [projected.x, projected.y] as Point;
+                        });
+                        const clippedCell = clipPolygon(projectedCell, rect);
+                        if (clippedCell.length < 3)
+                        {
+                            return [];
+                        }
+                        const fill = exposure.state === 'NO_DIRECT_SUN'
+                            ? 'rgba(111, 128, 138, 0.88)'
+                            : cell.sunlit ? 'rgba(255, 198, 92, 0.96)' : 'rgba(43, 58, 70, 0.96)';
+                        return [{
+                            tag: 'polygon' as const,
+                            geom: pointsAttr(clippedCell),
+                            fill,
+                            stroke: 'none',
+                            strokeWidth: '0',
+                        }];
+                    });
+                    const curtainCorners = curtainOverlayCorners(homeWindow, curtainClosedFraction);
+                    if (curtainCorners)
+                    {
+                        const projectedCurtain = curtainCorners.map(([east, north, up]) =>
+                        {
+                            const projected = cam.project3(east, north, up);
+                            return [projected.x, projected.y] as Point;
+                        });
+                        const clippedCurtain = clipPolygon(projectedCurtain, rect);
+                        if (clippedCurtain.length >= 3)
+                        {
+                            windowShapes.push({
+                                tag: 'polygon',
+                                geom: pointsAttr(clippedCurtain),
+                                fill: 'rgba(255, 255, 255, 0.96)',
+                                stroke: 'rgba(128, 138, 148, 0.92)',
+                                strokeWidth: '0.8',
+                            });
+                        }
+                    }
+                    const projectedFrame = homeWindow.corners.map(([east, north, up]) =>
+                    {
+                        const projected = cam.project3(east, north, up);
+                        return [projected.x, projected.y] as Point;
+                    });
+                    const clippedFrame = clipPolygon(projectedFrame, rect);
+                    if (clippedFrame.length >= 3)
+                    {
+                        windowShapes.push({
+                            tag: 'polygon',
+                            geom: pointsAttr(clippedFrame),
+                            fill: 'none',
+                            stroke: 'rgba(228, 247, 252, 0.95)',
+                            strokeWidth: '1.2',
+                        });
+                    }
+                }
                 //Sort key = the wall's NEAREST corner (max cameraZ, larger = nearer). On a concave footprint an
                 //edge-midpoint depth mis-orders two facing walls; the nearest-point does not.
                 const wallDepth = Math.max(pBase[i].depth, pBase[next].depth, pRoof[i].depth, pRoof[next].depth);
-                faces.push({ depth: wallDepth, shape: wall });
+                faces.push({ depth: wallDepth, shape: wall, details: windowShapes });
             }
         }
         //Flat roof at its own nearest-corner depth (the outer ring's, gathered above). It sits at the top so in any
@@ -1158,6 +1245,10 @@ export function renderBuildings(
         if (f.detail)
         {
             out.push(f.detail);
+        }
+        if (f.details)
+        {
+            out.push(...f.details);
         }
     }
     return out;

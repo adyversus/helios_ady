@@ -3,6 +3,8 @@
 
 
 import { TIMELINE_MAX_TICKS, HOUR_MS, DAY_MS } from '../core/config/constants';
+import { formatHaDateTime } from '../core/format/format';
+import type { HassLike } from '../core/ha-types';
 
 export type TimelineKind = 'intraday' | 'days' | 'weeks' | 'months';
 
@@ -230,39 +232,13 @@ function buildTimelineModelUncached(start: Date, end: Date, maxTicks: number): T
 }
 
 
-//Constructing an Intl.DateTimeFormat is expensive and formatTimelineLabel runs per rendered label; the key space is
-//tiny and stable (4 kinds x the HA language), so every formatter is cached with no eviction, the try/catch fallback
-//included so a throwing language isn't re-attempted.
-const timelineFormatterCache = new Map<string, Intl.DateTimeFormat>();
-
-function timelineFormatterFor(kind: TimelineKind, lang: string | undefined, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat
+//Kind-aware label for the timeline footer, honouring HA language and 12/24-hour preference.
+export function formatTimelineLabel(kind: TimelineKind, d: Date, hass?: HassLike): string
 {
-    const key = `${lang ?? ''}|${kind}`;
-    let f = timelineFormatterCache.get(key);
-    if (!f)
-    {
-        try
-        {
-            f = new Intl.DateTimeFormat(lang, opts);
-        }
-        catch (_)
-        {
-            f = new Intl.DateTimeFormat(undefined, opts);
-        }
-        timelineFormatterCache.set(key, f);
-    }
-    return f;
-}
-
-//Kind-aware label for the timeline footer, honouring the HA language: intraday -> hour:minute, days -> short
-//weekday, weeks -> day + short month, months -> full month name.
-export function formatTimelineLabel(kind: TimelineKind, d: Date, hass?: { language?: string }): string
-{
-    const lang = (hass?.language as string | undefined) || undefined;
     const opts: Intl.DateTimeFormatOptions =
           kind === 'intraday' ? { hour: '2-digit', minute: '2-digit' }
               : kind === 'days'     ? { weekday: 'short' }
                   : kind === 'weeks'    ? { day: 'numeric', month: 'short' }
                       :                       { month: 'short' };
-    return timelineFormatterFor(kind, lang, opts).format(d);
+    return formatHaDateTime(hass, d, opts);
 }

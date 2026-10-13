@@ -24,6 +24,7 @@ import { buildPeriodData, binSlotSum, type PeriodHost, type PeriodLayer } from '
 import { changeSeriesToWatts } from '../sources/energy-stats';
 import { groupDevices } from '../sources/device-consumption';
 import { staticPrice, costRateAt } from '../sources/cost';
+import { CURTAIN_COLOR } from '../../scene/window-markers';
 import type { PeriodWindow } from './slot-walk';
 
 //One drawn line of the day, unit-agnostic. `colour` is a descriptor the card resolves; everything else is the data
@@ -35,6 +36,7 @@ export interface ProfileStrand
     peak:      number;
     dashed?:   boolean;
     colour:    StrandColour;
+    bounded?:  boolean;
 }
 
 //Slots per day = the card's "graph detail" setting, the same knob that sets how densely every other curve is
@@ -640,6 +642,32 @@ export function buildDayProfile(host: PeriodHost, target: ChartTarget, dayMs: nu
             return [];
         }
         return [{ values, predicted: noPred(), peak: 1, colour: { kind: 'token', token: 'humidity' } }];
+    }
+
+    if (target === 'curtain')
+    {
+        const engine = host._engine;
+        if (!engine)
+        {
+            return [];
+        }
+        const values = new Array<number | null>(slots).fill(null);
+        const slotMs = DAY_MS / slots;
+        for (let slot = 0; slot < slots; slot++)
+        {
+            const at = new Date(dayStartMs + (slot + 0.5) * slotMs);
+            const openPercent = engine.getCurtainOpenPercent(at);
+            if (openPercent !== null)
+            {
+                values[slot] = openPercent / 100;
+            }
+        }
+        dropShortRuns(values);
+        if (!anyValue(values))
+        {
+            return [];
+        }
+        return [{ values, predicted: noPred(), peak: 1, colour: { kind: 'literal', color: CURTAIN_COLOR }, bounded: true }];
     }
 
     if (target === 'cost')

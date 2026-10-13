@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="light dark">
+        <title>Helios Component Preview</title>
+        <style>
+            :root {
+                font-family: "Segoe UI", sans-serif;
+                color: #1d2725;
+                background: #edf1ed;
+            }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                padding: 32px;
+                box-sizing: border-box;
+            }
+            main {
+                max-width: 1100px;
+                margin: 0 auto;
+            }
+            h1 {
+                margin: 0 0 20px;
+                font-size: 20px;
+                font-weight: 600;
+            }
+            helios-card {
+                display: block;
+                min-height: 560px;
+            }
+            @media (max-width: 600px) {
+                body { padding: 12px; }
+                helios-card { min-height: 440px; }
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Helios Component Preview</h1>
+            <helios-card></helios-card>
+        </main>
+        <script type="module" src="/src/dev-preview.ts"></script>
+    </body>
+</html>

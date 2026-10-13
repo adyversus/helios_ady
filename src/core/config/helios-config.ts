@@ -9,6 +9,8 @@ import {
     DEFAULT_MAX_EXPECTED_POWER_W, MIN_MAX_EXPECTED_POWER_W, MAX_MAX_EXPECTED_POWER_W,
     DEFAULT_BUILDING_COUNT, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT,
     FIXED_BUILDING_HEIGHT_M, MIN_BUILDING_HEIGHT_M, MAX_BUILDING_HEIGHT_M,
+    DEFAULT_WINDOW_SILL_HEIGHT_M, MAX_WINDOW_SILL_HEIGHT_M,
+    DEFAULT_CURTAIN_MAX_DEPTH_M, MAX_CURTAIN_DEPTH_M,
     DEFAULT_NO_UI_DELAY_S, MIN_NO_UI_DELAY_S, MAX_NO_UI_DELAY_S,
     SCENE_ZOOM_LEVELS, DEFAULT_SCENE_ZOOM,
 } from './constants';
@@ -26,6 +28,8 @@ export {
     DEFAULT_SHADOW_OPACITY,
     DEFAULT_BUILDING_COUNT, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT,
     FIXED_BUILDING_HEIGHT_M, MIN_BUILDING_HEIGHT_M, MAX_BUILDING_HEIGHT_M,
+    DEFAULT_WINDOW_SILL_HEIGHT_M, MAX_WINDOW_SILL_HEIGHT_M,
+    DEFAULT_CURTAIN_MAX_DEPTH_M, MAX_CURTAIN_DEPTH_M,
     DEFAULT_NO_UI_DELAY_S, MIN_NO_UI_DELAY_S, MAX_NO_UI_DELAY_S,
 } from './constants';
 
@@ -66,6 +70,10 @@ export interface HeliosConfig
     'building-real-size'?:     unknown;
     //Fixed prism height (m) per building when `building-real-size` is false. Clamped [3,10], default 6.
     'building-height'?:        unknown;
+    //Window sill height above the building floor, in metres. Defaults to floor level (0).
+    'window-sill-height'?:     unknown;
+    //Maximum direct-sun penetration depth on the floor before the curtain simulation covers the window, in metres.
+    'curtain-max-depth'?:      unknown;
     //Cast-shadow master toggle. Default true.
     'shadows-enabled'?:        unknown;
     //Opacity 0..1 of the cast ground shadow layer. Default 0.32.
@@ -610,4 +618,30 @@ export function buildingRealSize(config: HeliosConfig | undefined): boolean
 export function buildingFixedHeightM(config: HeliosConfig | undefined): number
 {
     return resolveClampedInt(config, 'building-height', FIXED_BUILDING_HEIGHT_M, MIN_BUILDING_HEIGHT_M, MAX_BUILDING_HEIGHT_M);
+}
+
+
+//Resolve the window sill height in metres, clamped to the supported range [0, 50].
+export function windowSillHeight(config: HeliosConfig | undefined): number
+{
+    const raw = config?.['window-sill-height'];
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? parseFloat(raw) : NaN;
+    if (!Number.isFinite(parsed))
+    {
+        return DEFAULT_WINDOW_SILL_HEIGHT_M;
+    }
+    return clamp(parsed, DEFAULT_WINDOW_SILL_HEIGHT_M, MAX_WINDOW_SILL_HEIGHT_M);
+}
+
+
+//Resolve the simulated maximum floor-beam depth in metres, clamped to [0, 50].
+export function curtainMaxDepthM(config: HeliosConfig | undefined): number
+{
+    const raw = config?.['curtain-max-depth'];
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? parseFloat(raw) : NaN;
+    if (!Number.isFinite(parsed))
+    {
+        return DEFAULT_CURTAIN_MAX_DEPTH_M;
+    }
+    return clamp(parsed, 0, MAX_CURTAIN_DEPTH_M);
 }

@@ -16,6 +16,12 @@ import { sunSpherePoint, moonSpherePoint, daylightRamp, horizonSpherePoint } fro
 import { buildTimeSamples, timeSamplesEqual, nearestSampleAt, type TimeSample } from '../core/nearest-series';
 import { fetchHorizonProfile, horizonAltAt, horizonPeak, HORIZON_MIN_PEAK_DEG, type HorizonProfile } from '../data/sources/horizon';
 import {
+    calculateCurtainClosedFraction,
+    centeredWindowOnFacade,
+    DEFAULT_WINDOW_AZIMUTH_DEG,
+    evaluateWindowSunExposure,
+} from './window-markers';
+import {
     CAMERA_PITCH_MIN_DEG, CAMERA_PITCH_MAX_DEG, CAMERA_PITCH_REST_DEG,
     SUN_ARC_RADIUS_M, SUN_ARC_SAMPLES, SUN_ARC_NIGHT_OPACITY, SUNRISE_SUNSET_ALTITUDE_DEG,
     ARRAY_TILE_W_PX, ARRAY_TILE_L_PX, ARRAY_TILE_LIFT_M, DEG,
@@ -25,6 +31,7 @@ import {
 import
 {
     type HeliosConfig,
+    type SceneZoom,
     displayRadiusM,
     sceneZoom,
     DEFAULT_BUILDING_OPACITY,
@@ -33,6 +40,8 @@ import
     buildingCount,
     buildingRealSize,
     buildingFixedHeightM,
+    windowSillHeight,
+    curtainMaxDepthM,
     buildingColorToken,
     mapThemeMode,
     mapLayerColor,
@@ -143,6 +152,7 @@ export class HeliosEngine
 
     //Skip atmosphere repaint when the sun moved less than 1.5° since last call (~6 min).
     private _lastAtmosphereAlt = -999;
+    private _lastAtmosphereAzimuth = -999;
     //Sun altitude at the last ground re-tint. Re-rasterising the vector ground is heavy, so its day/night grade
     //steps every few degrees, coarser than the 1.5° sun/shadow step.
     private _lastGroundAlt = -999;
@@ -379,6 +389,61 @@ export class HeliosEngine
         return this._buildingsData.some((b) => b.isHome && b.placeholder === true);
     }
 
+    public getCurtainOpenPercent(atDate?: Date): number | null
+    {
+        const selectedTime = this._selectedTime;
+        const timeMs = atDate?.getTime() ?? (selectedTime
+            ? selectedTime.getTime()
+            : Math.floor(Date.now() / 60_000) * 60_000);
+        const at = new Date(timeMs);
+        const sun = getSunPosition(at, this.homeLat, this.homeLon);
+        const horizonAltitude = this._horizonAt(sun.azimuth);
+        const sillHeightM = windowSillHeight(this.cfg);
+        const maxDepthM = curtainMaxDepthM(this.cfg);
+        const buildings = this._buildingsData;
+        const cached = this._curtainOpenPercentMemo.get(timeMs);
+        if (cached && cached.buildings === buildings
+            && cached.sillHeightM === sillHeightM && cached.maxDepthM === maxDepthM
+            && cached.horizonAltitude === horizonAltitude)
+        {
+            return cached.openPercent;
+        }
+
+        const home = buildings?.find((building) => building.isHome);
+        const window = home
+            ? centeredWindowOnFacade(home.footprint, home.height, DEFAULT_WINDOW_AZIMUTH_DEG, sillHeightM)
+            : null;
+        let openPercent: number | null = null;
+        if (window && buildings)
+        {
+            const occluders = buildings.map((building) => ({
+                footprint: building.footprint,
+                holes:     building.holes,
+                height:    building.height,
+            }));
+            const exposure = evaluateWindowSunExposure(
+                window, occluders, sun.azimuth, sun.altitude, horizonAltitude
+            );
+            const closed = calculateCurtainClosedFraction(
+                window, exposure, sun.azimuth, sun.altitude, maxDepthM
+            );
+            openPercent = Math.round((1 - closed) * 100);
+        }
+
+        if (this._curtainOpenPercentMemo.size >= 2048)
+        {
+            this._curtainOpenPercentMemo.clear();
+        }
+        this._curtainOpenPercentMemo.set(timeMs, {
+            buildings,
+            sillHeightM,
+            maxDepthM,
+            horizonAltitude,
+            openPercent,
+        });
+        return openPercent;
+    }
+
     //Current camera pose (bearing/pitch in degrees), or null before the renderer exists. Used by the editor's
     //"use current view" helper to capture the framed angle into the config.
     public getCameraPose(): { bearing: number; pitch: number } | null
@@ -536,6 +601,13 @@ export class HeliosEngine
     //for. _buildingsData is the INTERPRETED Building[] the renderer draws, recomputed in memory on every
     //option change with no re-fetch.
     private _buildingsData:   Building[] | null    = null;
+    private _curtainOpenPercentMemo = new Map<number, {
+        buildings: Building[] | null;
+        sillHeightM: number;
+        maxDepthM: number;
+        horizonAltitude: number;
+        openPercent: number | null;
+    }>();
     private _buildingsRaw:    RawBuilding[] | null = null;
     //True once a fetch for the current location has settled (data, empty, or outage). Before that, the scene shows
     //no buildings at all rather than the fallback house: the fallback is for a genuine "no data" outcome, not the
@@ -645,6 +717,8 @@ export class HeliosEngine
             shadowOpacity: this._shadowOpacity(),
             degraded:      degradedRender(this.cfg),
         });
+        this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
+        this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
         this._renderer.setCameraBearing(this._initialBearing());
         this._renderer.setCameraPitch(this._initialPitch());
         this._renderer.setZoom(sceneZoom(this.cfg));
@@ -1451,18 +1525,20 @@ export class HeliosEngine
         const sun = getSunPosition(t, this.homeLat, this.homeLon);
         const { altitude, azimuth } = sun;
 
-        if (Math.abs(altitude - this._lastAtmosphereAlt) < 1.5)
+        const azimuthDelta = ((azimuth - this._lastAtmosphereAzimuth + 540) % 360) - 180;
+        if (Math.abs(altitude - this._lastAtmosphereAlt) < 1.5 && Math.abs(azimuthDelta) < 1.5)
         {
             return;
         }
         this._lastAtmosphereAlt = altitude;
+        this._lastAtmosphereAzimuth = azimuth;
 
         //Master shadow toggle: collapse shadow opacity to 0 when shadows are disabled, else the configured
         //value. The renderer multiplies this into every cast-shadow polygon.
         this._renderer.setPalette({
             shadowOpacity: this._shadowsEnabled() ? this._shadowOpacity() : 0,
         });
-        this._renderer.setSun(azimuth, altitude);
+        this._renderer.setSun(azimuth, altitude, this._horizonAt(azimuth));
 
         //Day/night colour grade on the vector ground, in coarser altitude steps than the sun/shadow update above:
         //re-tinting the whole basemap re-rasterises it.
@@ -2569,15 +2645,15 @@ export class HeliosEngine
             return;
         }
 
+        this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
+        this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
+
         //Scene zoom: the renderer rescales its camera; the arc caches baked the old px-per-metre into their
         //samples and the scale memo, so they are dropped for the next projection pass.
         const nextZoom = sceneZoom(this.cfg);
         if (nextZoom !== prevZoom)
         {
-            this._renderer.setZoom(nextZoom);
-            this._arcScaleMemo       = undefined;
-            this._arcInputsCache     = undefined;
-            this._moonArcInputsCache = undefined;
+            this._applySceneZoom(nextZoom);
         }
 
         //Building option updates (radius/count/real-size/height/cluster): re-interpret the cached raw
@@ -2609,6 +2685,28 @@ export class HeliosEngine
         {
             this._renderForCurrentSelection();
         }
+    }
+
+    public setSceneZoom(zoom: SceneZoom): void
+    {
+        if (sceneZoom(this.cfg) === zoom)
+        {
+            return;
+        }
+        this.cfg = { ...this.cfg, 'scene-zoom': zoom };
+        this._applySceneZoom(zoom);
+    }
+
+    private _applySceneZoom(zoom: SceneZoom): void
+    {
+        if (!this._renderer)
+        {
+            return;
+        }
+        this._renderer.setZoom(zoom);
+        this._arcScaleMemo       = undefined;
+        this._arcInputsCache     = undefined;
+        this._moonArcInputsCache = undefined;
     }
 
 

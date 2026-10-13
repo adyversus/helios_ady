@@ -130,6 +130,49 @@ export const heliosCardStyles = css`
         cursor: default !important;
     }
 
+    .helios-zoom-controls
+    {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: opacity 1000ms ease;
+    }
+    .helios-zoom-btn
+    {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.35));
+        border-radius: 6px;
+        background: var(--ha-card-background, var(--card-background-color, #fff));
+        box-shadow: var(--helios-shadow-chip);
+        color: var(--primary-text-color, #212121);
+        font: inherit;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .helios-zoom-btn:hover:not(:disabled)
+    {
+        background: var(--secondary-background-color, var(--ha-card-background, #fff));
+    }
+    .helios-zoom-btn:focus-visible
+    {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+    }
+    .helios-zoom-btn:disabled
+    {
+        opacity: 0.4;
+        cursor: default;
+    }
+
 
     /*  ============================================================
         HUD chips: ONE shared pill recipe for every floating chip, scene
@@ -460,6 +503,15 @@ export const heliosCardStyles = css`
     {
         flex: 1 1 auto;
         text-align: right;
+    }
+    .detail-panel .dp-note
+    {
+        margin-top: 4px;
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-xs, 10px);
+        font-weight: 400;
+        line-height: 1.35;
+        white-space: normal;
     }
     /*  Per-device group rows: a left-aligned name (ellipsised) then the right-aligned total. */
     .detail-panel .dp-row-device .dp-label
@@ -886,12 +938,14 @@ export const heliosCardStyles = css`
        (driven by the data-ui-hidden host attribute; see _uiHidden / noUiDelayMs). The reduced-motion block
        above drops the fade to an instant show/hide. */
     .time-bar,
-    .tb-band
+    .tb-band,
+    .helios-zoom-controls
     {
         transition: opacity 1000ms ease;
     }
     :host([data-ui-hidden]) .time-bar,
-    :host([data-ui-hidden]) .tb-band
+    :host([data-ui-hidden]) .tb-band,
+    :host([data-ui-hidden]) .helios-zoom-controls
     {
         opacity: 0;
         pointer-events: none;
@@ -997,6 +1051,12 @@ export const heliosCardStyles = css`
     /*  Day-curve open: each non-active corner chip becomes an inert, invisible placeholder. It still reserves its
         slot width so the centered row does not shift the surviving chip when its siblings drop out.  */
     .helios-corner-chip.is-slot-hidden { visibility: hidden; pointer-events: none; }
+
+        .helios-corner-chip:focus-visible
+    {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
+    }
 
     /*  THUNDERSTORM lightning: a top-weighted blue-white flash pushed by the storm controller via --wx-flash.
         Plain opacity compositing (no mix-blend-mode): screen-blend forces a stacking-context blend group that some

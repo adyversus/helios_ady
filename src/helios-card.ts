@@ -18,13 +18,14 @@ import
     showCost,
     showHorizonLine,
     horizonLineColor,
+    sceneZoom,
 } from './core/config/helios-config';
 import { chipSlotColor, chipSlotIcon } from './core/config/chip-appearance';
 import { buildDayProfile, daySlots, type ProfileStrand } from './data/period-totals/day-profile';
 import { buildSunGroundTrack, slotOfMs, type DayCurveInput, type DayStrand, type DayCurvePass, type DayCurveScene, type SunTrackPoint } from './scene/day-curve';
 import { type TimelineMode, TIMELINE_MODES, TIMELINE_MODE_ORDER, modeFetchPeriod, modePastDays, modeFutureDays } from './timeline/timeline-modes';
 import { pickTranslations } from './core/i18n';
-import { DAY_CURVE_SWEEP_MS } from './core/config/constants';
+import { DAY_CURVE_SWEEP_MS, SCENE_ZOOM_LEVELS } from './core/config/constants';
 import { heliosCardStyles } from './css/helios-card-scene-css';
 import { weatherOverlay, WeatherRain, WeatherSnow, WeatherStorm, weatherLayers, type WxInput } from './scene/weather-fx';
 import { heliosTimelineStyles } from './css/helios-timeline-css';
@@ -514,6 +515,25 @@ export class HeliosCard extends LitElement
         }
     };
 
+    private _changeSceneZoom = (delta: -1 | 1): void =>
+    {
+        if (!this._engine)
+        {
+            return;
+        }
+        const currentZoom = sceneZoom(this._engine.cfg);
+        const currentIndex = SCENE_ZOOM_LEVELS.indexOf(currentZoom);
+        const nextZoom = SCENE_ZOOM_LEVELS[currentIndex + delta];
+        if (nextZoom === undefined)
+        {
+            return;
+        }
+        this._engine.setSceneZoom(nextZoom);
+        this.requestUpdate();
+    };
+    private _onSceneZoomOut = (): void => this._changeSceneZoom(-1);
+    private _onSceneZoomIn  = (): void => this._changeSceneZoom(1);
+
     //Recorder period for the energy change-series: the user's display cadence capped per mode, so the month
     //window never pulls 5-min rows. Read by the fetch hosts (pv/grid/battery).
     get _storeFetchPeriod(): StatPeriod
@@ -734,6 +754,7 @@ export class HeliosCard extends LitElement
                 predicted:  ps.predicted,
                 peak:       ps.peak,
                 dashed:     ps.dashed,
+                bounded:    ps.bounded,
                 colour:     resolved.colour,
                 segColours: resolved.segColours,
             };
@@ -1235,13 +1256,50 @@ export class HeliosCard extends LitElement
         const hidden = this._dayCurveOpen && this._chartTarget !== 'humidity';
         return this._cornerChip('humidity', `${Math.round(this._humidity)} %`, hidden);
     }
-    private _cornerChip(slot: 'temperature' | 'humidity' | 'cost', text: string, hidden: boolean): TemplateResult
+    private _renderCurtainChip(openPercent: number | null): TemplateResult | typeof nothing
     {
-        const color   = chipSlotColor(this, this.config, slot);
-        const icon    = chipSlotIcon(this.config, slot);
+        if (openPercent === null)
+        {
+            return nothing;
+        }
+        const closedPercent = 100 - openPercent;
+        const hidden = this._dayCurveOpen && this._chartTarget !== 'curtain';
+        return this._cornerChip('humidity', `${openPercent}% open`, hidden, {
+            color: '#607d8b',
+            icon: 'mdi:blinds-horizontal',
+            target: 'curtain',
+            ariaLabel: `Simulated curtain: ${openPercent}% open, ${closedPercent}% covered. Show timeline and details.`,
+            title: 'Show curtain timeline and details',
+            ariaExpanded: this._infoPanelOpen && this._chartTarget === 'curtain',
+            ariaControls: 'helios-detail-panel',
+        });
+    };
+    private _cornerChip(
+        slot: 'temperature' | 'humidity' | 'cost',
+        text: string,
+        hidden: boolean,
+        options: {
+            color?: string;
+            icon?: string;
+            interactive?: boolean;
+            ariaLabel?: string;
+            title?: string;
+            ariaLive?: 'polite' | 'off';
+            target?: ChartTarget | null;
+            ariaExpanded?: boolean;
+            ariaControls?: string;
+            onClick?: (e: Event) => void;
+            onKeyDown?: (e: KeyboardEvent) => void;
+        } = {}
+    ): TemplateResult
+    {
+        const interactive = options.interactive !== false;
+        const target = options.target === undefined ? slot : options.target;
+        const color   = options.color ?? chipSlotColor(this, this.config, slot);
+        const icon    = options.icon ?? chipSlotIcon(this.config, slot);
         //Same re-targeting gesture as the scene chips: one tap points the chart + around-house curve at this
         //metric, a second tap on the active chip toggles its day curve (onChartTargetClick).
-        const active  = this._chartTarget === slot;
+        const active  = interactive && target !== null && this._chartTarget === target;
         const curveOn = active && this._dayCurveOpen;
         //A hidden chip carries is-slot-hidden (visibility:hidden): it reserves its width but is automatically
         //inert, unfocusable and out of the a11y tree, so role/tabindex/click can stay static.
@@ -1249,15 +1307,30 @@ export class HeliosCard extends LitElement
             <div
                 class="helios-corner-chip ${active ? 'is-chart-active' : ''} ${curveOn ? 'is-curve-on' : ''} ${hidden ? 'is-slot-hidden' : ''}"
                 style=${`--chip-color:${color}`}
-                role="button"
-                tabindex="0"
-                data-target=${slot}
-                @click=${this.onChartTargetClick}
+                role=${interactive ? 'button' : 'status'}
+                tabindex=${interactive ? '0' : nothing}
+                aria-label=${options.ariaLabel ?? nothing}
+                title=${options.title ?? nothing}
+                aria-live=${options.ariaLive ?? nothing}
+                aria-expanded=${options.ariaExpanded ?? nothing}
+                aria-controls=${options.ariaControls ?? nothing}
+                data-target=${interactive && target !== null ? target : nothing}
+                @click=${options.onClick ?? (interactive ? this.onChartTargetClick : undefined)}
+                @keydown=${options.onKeyDown ?? (interactive ? this._onCornerChipKeyDown : undefined)}
             >
                 <ha-icon icon=${icon}></ha-icon>
                 <span>${text}</span>
             </div>`;
     }
+
+    private _onCornerChipKeyDown = (e: KeyboardEvent): void =>
+    {
+        if (e.key === 'Enter' || e.key === ' ')
+        {
+            e.preventDefault();
+            this.onChartTargetClick(e);
+        }
+    };
 
     //Cost chip: the live NET money rate in the user's currency per hour. Fixed, user-configurable colour
     //+ icon like every other chip (no sign-driven colour); spend vs earn is carried by the value's sign (a negative
@@ -1655,6 +1728,7 @@ export class HeliosCard extends LitElement
         //camera-locked swaps the grab cursor for the default arrow when drag-rotate is inert, so the open-hand cursor
         //isn't misleading. Re-evaluated every render.
         const cameraLocked = this._isCameraLocked();
+        const curtainOpenPercent = this._engine?.getCurtainOpenPercent() ?? null;
         //Detail panel accent (from the active chip) drives both the panel border and the little "i" badge on the
         //open chip, so it lives as a card-level class + CSS var.
         const infoOpen = this._infoPanelOpen;
@@ -1667,9 +1741,12 @@ export class HeliosCard extends LitElement
         ].filter(Boolean).join(' ');
         //Selected-chip accent for the timeline + period-selector top borders (always), plus the detail-panel
         //accent (same colour) only when the panel is open.
-        const cardStyle = `--tb-accent:${activeChipColor}${infoOpen ? `; --detail-accent:${activeChipColor}` : ''}`;
+        const detailAccent = infoOpen ? activeChipColor : '';
+        const cardStyle = `--tb-accent:${activeChipColor}${detailAccent ? `; --detail-accent:${detailAccent}` : ''}`;
         //Whether the bottom timeline chrome is on screen. Also lifts the weather chips clear of it (.has-timeline).
         const timelineShown = hasHomeCoords && this._timeRange && showTimeline(this.config);
+        const sceneZoomLevel = sceneZoom(this._engine?.cfg ?? this.config);
+        const sceneZoomIndex = SCENE_ZOOM_LEVELS.indexOf(sceneZoomLevel);
 
         return html`
             <ha-card class=${cardClasses} style=${cardStyle}>
@@ -1680,6 +1757,29 @@ export class HeliosCard extends LitElement
                     @pointerup=${this._onSceneTapEnd}
                 ></div>
 
+                ${hasHomeCoords && this._engine ? html`
+                    <div class="helios-zoom-controls" role="group" aria-label="Scene zoom">
+                        <button
+                            class="helios-zoom-btn"
+                            type="button"
+                            title="Zoom out"
+                            aria-label="Zoom out"
+                            ?disabled=${sceneZoomIndex === 0}
+                            @pointerdown=${this._stopPointer}
+                            @click=${this._onSceneZoomOut}
+                        >-</button>
+                        <button
+                            class="helios-zoom-btn"
+                            type="button"
+                            title="Zoom in"
+                            aria-label="Zoom in"
+                            ?disabled=${sceneZoomIndex === SCENE_ZOOM_LEVELS.length - 1}
+                            @pointerdown=${this._stopPointer}
+                            @click=${this._onSceneZoomIn}
+                        >+</button>
+                    </div>
+                ` : nothing}
+
                 <!--  weather overlay layers, then the weather chips (temperature, humidity),
                       grouped along the bottom with the scene pill family (lifted above the timeline when shown).  -->
                 ${weatherOverlay()}
@@ -1687,6 +1787,7 @@ export class HeliosCard extends LitElement
                     ${this._renderCostChip()}
                     ${this._renderTempChip()}
                     ${this._renderHumidityChip()}
+                    ${this._renderCurtainChip(curtainOpenPercent)}
                 </div>
 
                 ${timelineShown ? html`
@@ -1957,7 +2058,7 @@ export class HeliosCard extends LitElement
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object')
             {
-                const valid: ChartTarget[] = ['production', 'consumption', 'grid', 'battery', 'battery-soc', 'irradiance', 'temperature', 'humidity', 'cost', ...GROUP_TARGETS];
+                const valid: ChartTarget[] = ['production', 'consumption', 'grid', 'battery', 'battery-soc', 'irradiance', 'temperature', 'humidity', 'curtain', 'cost', ...GROUP_TARGETS];
                 if (typeof parsed.chartTarget === 'string' && valid.includes(parsed.chartTarget as ChartTarget))
                 {
                     //A restored pick is the user's own, so it stands and is never re-resolved to the default.
