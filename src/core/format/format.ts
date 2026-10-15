@@ -118,13 +118,14 @@ function getHaDateTimeFormat(locale: string | undefined, opts: Intl.DateTimeForm
 
 //Format a Date with the user's HA language + a caller-supplied options set, falling back to the runtime default
 //locale if the language tag is rejected. No time-zone conversion: callers pass a local Date for wall-clock display.
-function formatWithHaLocale(hass: HassLike, date: Date, opts: Intl.DateTimeFormatOptions): string
+function formatWithHaLocale(hass: HassLike | undefined, date: Date, opts: Intl.DateTimeFormatOptions): string
 {
     const locale = hass?.locale as { time_format?: string; language?: string } | undefined;
+    const language = locale?.language ?? hass?.language;
     const withAmPm: Intl.DateTimeFormatOptions = { ...opts, hour12: haUseAmPm(locale) };
     try
     {
-        return getHaDateTimeFormat(locale?.language, withAmPm).format(date);
+        return getHaDateTimeFormat(language, withAmPm).format(date);
     }
     catch (_)
     {
@@ -141,9 +142,13 @@ export function formatHaTime(hass: HassLike, date: Date): string
 
 //Date + time like the HA frontend (day, short month, hour:minute, honouring 12/24h), for the timeline scrub readout
 //where the coarse axis labels of a week/month window don't pin the exact instant.
-export function formatHaDateTime(hass: HassLike, date: Date): string
+export function formatHaDateTime(
+    hass: HassLike | undefined,
+    date: Date,
+    opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }
+): string
 {
-    return formatWithHaLocale(hass, date, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    return formatWithHaLocale(hass, date, opts);
 }
 
 

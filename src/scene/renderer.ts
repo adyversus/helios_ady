@@ -12,6 +12,7 @@ import { pxPerMetreFor, type Ground } from './tiles';
 import { buildVectorGround, GROUND_LAYER_KEYS, type GroundStyle, type GroundPalette, type VectorGround } from './ground-render';
 import { groundPoolKey, offerGround, takeGround } from './ground-pool';
 import { renderBuildings, renderShadows, type Building, type ScenePalette, type HomeAppearance } from './buildings';
+import type { EvaluatedWindowGeometry } from './window-markers';
 import { SceneSvgLayers, type SceneDocument, type SceneNode } from './scene-dom';
 import { gradeColor } from '../core/render-kit/colors';
 import {
@@ -284,7 +285,10 @@ export class SceneRenderer
     //home-position change landing while the previous tile grid is still fetching).
     private _groundToken = 0;
     private _buildings: Building[] = [];
-    private _sun = { azimuth: 0, altitude: 0 };
+    private _windowAzimuthArrow = false;
+    private _windowStates: readonly EvaluatedWindowGeometry[] = [];
+    private _selectedWindowId: string | null = null;
+    private _sun = { azimuth: 0, altitude: 0, horizonAltitude: 0 };
     private _growth = 1;
     //Home prism appearance (colour, squash multiplier). Empty colour falls back to palette.home.
     private _home: HomeAppearance = { growth: 1 };
@@ -594,9 +598,42 @@ export class SceneRenderer
         this.scheduleRedraw();
     }
 
-    public setSun(azimuth: number, altitude: number): void
+    public setWindowAzimuthArrow(enabled: boolean): void
     {
-        this._sun = { azimuth, altitude };
+        if (this._windowAzimuthArrow === enabled)
+        {
+            return;
+        }
+        this._windowAzimuthArrow = enabled;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setWindowStates(states: readonly EvaluatedWindowGeometry[]): void
+    {
+        if (this._windowStates === states)
+        {
+            return;
+        }
+        this._windowStates = states;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setSelectedWindowId(windowId: string | null): void
+    {
+        if (this._selectedWindowId === windowId)
+        {
+            return;
+        }
+        this._selectedWindowId = windowId;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setSun(azimuth: number, altitude: number, horizonAltitude = 0): void
+    {
+        this._sun = { azimuth, altitude, horizonAltitude };
         this.scheduleRedraw();
     }
 
@@ -813,7 +850,7 @@ export class SceneRenderer
         //and a revision bumped by setBuildings/setPalette), mirroring the ground compat path's own pose guard above.
         //Anything below the SVG that must run every frame (onAfterDraw) stays outside this gate.
         const scenePose = `${width}x${height}|${this.camera.zoom}|${this.camera.bearingDeg.toFixed(2)}|${this.camera.tiltDeg.toFixed(2)}`
-            + `|${this._sun.azimuth.toFixed(2)}|${this._sun.altitude.toFixed(2)}|${this._growth.toFixed(3)}`
+            + `|${this._sun.azimuth.toFixed(2)}|${this._sun.altitude.toFixed(2)}|${this._sun.horizonAltitude.toFixed(2)}|${this._growth.toFixed(3)}`
             + `|${this._home.color ?? ''}|${(this._home.growth ?? 1).toFixed(3)}|${this._sceneRev}`
             + `|${this._wxSat}|${this._wxBright}`;
         if (scenePose !== this._lastScenePose)
@@ -837,7 +874,10 @@ export class SceneRenderer
             //The day/night atmosphere is the graded ground palette + the altitude-tinted buildings.
             this._sceneLayers.commit(
                 renderShadows(this.camera, drawn, this._sun, gradedShadow, this._palette.shadowOpacity),
-                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth),
+                renderBuildings(
+                    this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity,
+                    gradedHome, this._sun.azimuth, this._windowStates, this._windowAzimuthArrow, this._selectedWindowId
+                ),
             );
         }
 

@@ -9,6 +9,30 @@ import {
     type HomeAppearance,
 } from '../src/scene/buildings';
 import { SceneCamera } from '../src/scene/projection';
+import { resolveWindowDefinitions } from '../src/core/config/helios-config';
+import { evaluateWindowGeometries, resolveWindowGeometries } from '../src/scene/window-markers';
+
+function evaluatedWindows(
+    building: Building,
+    sunAzimuth: number,
+    sunAltitude: number,
+    sillHeightM = 0,
+    curtainMaxDepthM = 1,
+    specs?: unknown[]
+)
+{
+    const definitions = resolveWindowDefinitions({
+        'curtain-max-depth': curtainMaxDepthM,
+        ...(specs === undefined ? {} : { windows: specs }),
+    });
+    const geometry = resolveWindowGeometries(definitions, building.footprint, building.height, sillHeightM);
+    return evaluateWindowGeometries(
+        geometry,
+        [{ footprint: building.footprint, holes: building.holes, height: building.height }],
+        sunAzimuth,
+        sunAltitude
+    );
+}
 
 //Characterization snapshot: pins the exact SVG output of the buildings + shadows painters for a fixed scene, so the
 //painters' output reaching the DOM as persistent nodes (scene-dom.ts) provably changed not a single path.
@@ -37,10 +61,137 @@ function scene(): {
 
 describe('buildings / shadows render (characterization)', () =>
 {
+    it('renders the default-azimuth window on the synthetic home facade when that side is visible', () =>
+    {
+        const footprint: [number, number][] = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
+        const building: Building = {
+            footprint,
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        const windows = evaluatedWindows(building, 180, 40);
+        let windowRendered = false;
+
+        for (const bearing of [0, 90, 180, 270])
+        {
+            const cam = new SceneCamera();
+            cam.setPose(bearing, 45);
+            cam.setViewport(640, 420);
+            const shapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 180, windows);
+            if (shapes.some((shape) => shape.strokeWidth === '1.2'))
+            {
+                windowRendered = true;
+                break;
+            }
+        }
+
+        expect(windowRendered).toBe(true);
+    });
+
+    it('draws the simulated curtain when direct sun exceeds the configured floor depth', () =>
+    {
+        const building: Building = {
+            footprint: [[-4, -4], [4, -4], [4, 4], [-4, 4]],
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        const windows = evaluatedWindows(building, 270, 40, 1.2, 1, [
+            { id: 'window', building: 'home', azimuth: 270, length: 1.2, width: 0.9, 'curtain-max-depth': 1 },
+        ]);
+        let curtainRendered = false;
+
+        for (const bearing of [0, 90, 180, 270])
+        {
+            const cam = new SceneCamera();
+            cam.setPose(bearing, 45);
+            cam.setViewport(640, 420);
+            const shapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 270, windows);
+            if (shapes.some((shape) => shape.fill === 'rgba(255, 255, 255, 0.96)'))
+            {
+                curtainRendered = true;
+                break;
+            }
+        }
+
+        expect(curtainRendered).toBe(true);
+    });
+
+    it('renders independently evaluated windows on opposite home facades through the shared renderer', () =>
+    {
+        const building: Building = {
+            footprint: [[-4, -4], [4, -4], [4, 4], [-4, 4]],
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+        };
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        const windows = evaluatedWindows(building, 180, 40, 0.8, 1, [
+            { id: 'south', label: 'S', building: 'home', azimuth: 180 },
+            { id: 'north', label: 'N', building: 'home', azimuth: 0 },
+        ]);
+        let sunlitFacadeSeen = false;
+        let shadedFacadeSeen = false;
+        let arrowSeen = false;
+        let selectedPerimeterSeen = false;
+
+        for (const bearing of [0, 90, 180, 270])
+        {
+            const cam = new SceneCamera();
+            cam.setPose(bearing, 45);
+            cam.setViewport(640, 420);
+            const shapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 180, windows, true, 'south');
+            sunlitFacadeSeen ||= shapes.some((shape) => shape.fill === 'rgba(255, 198, 92, 0.96)');
+            shadedFacadeSeen ||= shapes.some((shape) => shape.fill === 'rgba(111, 128, 138, 0.88)');
+            arrowSeen ||= shapes.some((shape) => shape.stroke === '#ffb84d');
+            selectedPerimeterSeen ||= shapes.some((shape) => shape.stroke === '#ffeb3b' && shape.strokeWidth === '2.8');
+        }
+
+        expect(sunlitFacadeSeen).toBe(true);
+        expect(shadedFacadeSeen).toBe(true);
+        expect(arrowSeen).toBe(true);
+        expect(selectedPerimeterSeen).toBe(true);
+    });
+
+    it('draws an outward azimuth arrow only when enabled', () =>
+    {
+        const building: Building = {
+            footprint: [[-4, -4], [4, -4], [4, 4], [-4, 4]],
+            height: 6,
+            isHome: true,
+            centerX: 0,
+            centerY: 0,
+            placeholder: true,
+        };
+        const cam = new SceneCamera();
+        cam.setPose(270, 45);
+        cam.setViewport(640, 420);
+        const palette: ScenePalette = { home: '#e0a020', neighbor: '#8a8f98' };
+        const windows = evaluatedWindows(building, 180, 40);
+        const defaultShapes = renderBuildings(cam, [building], 40, palette, 1);
+        const arrowShapes = renderBuildings(cam, [building], 40, palette, 1, 0.25, {}, 180, windows, true);
+        const arrow = arrowShapes.find((shape) => shape.stroke === '#ffb84d');
+        const shaft = arrow?.geom.match(/^M(-?[\d.]+),(-?[\d.]+)L(-?[\d.]+),(-?[\d.]+)/);
+
+        expect(defaultShapes.some((shape) => shape.stroke === '#ffb84d')).toBe(false);
+        expect(arrow).toBeDefined();
+        expect(shaft).not.toBeNull();
+        expect(Math.hypot(Number(shaft?.[3]) - Number(shaft?.[1]), Number(shaft?.[4]) - Number(shaft?.[2]))).toBeGreaterThanOrEqual(25);
+    });
+
     it('renderBuildings output is stable for a fixed scene', () =>
     {
         const { cam, buildings, palette, home, sun } = scene();
-        expect(shapesSvg(renderBuildings(cam, buildings, sun.altitude, palette, 1, 0.25, home, sun.azimuth))).toMatchSnapshot();
+        const windows = evaluatedWindows(buildings[0], sun.azimuth, sun.altitude);
+        expect(shapesSvg(renderBuildings(cam, buildings, sun.altitude, palette, 1, 0.25, home, sun.azimuth, windows))).toMatchSnapshot();
     });
 
     it('renderShadows output is stable for a fixed scene', () =>

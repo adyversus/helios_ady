@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Estonian locale.
 export const et: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Reaalajas 2.5D-vaade sinu kodust koos päikese, ilma, päikesetootmise, aku ja võrguga, lisaks heidetud varjud ja interaktiivne ajatelg",
 

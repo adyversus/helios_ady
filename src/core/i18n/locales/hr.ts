@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Croatian locale.
 export const hr: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ 2.5D prikaz tvog doma u stvarnom vremenu sa suncem, vremenom, solarnom proizvodnjom, baterijom i mrežom, plus bačene sjene i interaktivna vremenska traka",
 

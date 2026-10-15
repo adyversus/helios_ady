@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Czech locale.
 export const cs: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ 2.5D pohled na tvůj domov v reálném čase se sluncem, počasím, solární výrobou, baterií a sítí, plus vržené stíny a interaktivní časová osa",
 

@@ -33,6 +33,7 @@ import {
 import { interpAt, pvValueAtTime } from '../data/series-sample';
 import { computeDailyKwhTotals } from '../charts/charts-generic';
 import { DAY_MS } from '../core/config/constants';
+import { CURTAIN_COLOR } from '../scene/window-markers';
 
 
 //Hover tooltip above the chart-card stack: the hover timestamp + one icon-coded row per series, plus the day's kWh
@@ -63,6 +64,7 @@ export function renderTimelineHoverTooltip(host: ChartHost): TemplateResult | ty
     const irrV = series ? interpAt(series.times, series.irradiance, atMs) : NaN;
     const tempV = series ? interpAt(series.times, series.temperature, atMs) : NaN;
     const humV  = series ? interpAt(series.times, series.humidity,    atMs) : NaN;
+    const curtainOpenV = host._engine?.getCurtainOpenPercent(new Date(atMs), host._selectedWindowId ?? undefined) ?? NaN;
     const cloudLowV  = series ? interpAt(series.times, series.cloudLow,  atMs) : NaN;
     const cloudMidV  = series ? interpAt(series.times, series.cloudMid,  atMs) : NaN;
     const cloudHighV = series ? interpAt(series.times, series.cloudHigh, atMs) : NaN;
@@ -217,7 +219,6 @@ export function renderTimelineHoverTooltip(host: ChartHost): TemplateResult | ty
         : (battW > 0 ? chipSlotColor(el, host.config, 'batteryCharge') : chipSlotColor(el, host.config, 'batteryDischarge'));
 
     const atDate     = new Date(atMs);
-    const haLanguage = (host.hass?.language as string | undefined) || undefined;
     //Header granularity follows the window: intraday shows the time, a multi-day span adds the weekday, and a
     //month span shows the calendar day, so you always know when you are.
     const spanDays  = rangeMs / DAY_MS;
@@ -225,7 +226,7 @@ export function renderTimelineHoverTooltip(host: ChartHost): TemplateResult | ty
           spanDays <= 2.05  ? { hour: '2-digit', minute: '2-digit' }
               : spanDays <= 14.05 ? { weekday: 'short', hour: '2-digit', minute: '2-digit' }
                   :                     { weekday: 'short', day: 'numeric', month: 'short' };
-    const timeLabel  = new Intl.DateTimeFormat(haLanguage, timeOpts).format(atDate);
+    const timeLabel  = formatHaDateTime(host.hass, atDate, timeOpts);
 
     //Day total split observed/forecast by cursor-vs-"now" (not the day boundary), so later-today hours show the
     //full-day forecast and earlier hours the production so far. Today's past prefers recorder-backed
@@ -457,6 +458,13 @@ export function renderTimelineHoverTooltip(host: ChartHost): TemplateResult | ty
                         <ha-icon class="tb-hover-tooltip-icon" style="color:${chipSlotColor(el, host.config, 'humidity')}" icon=${chipSlotIcon(host.config, 'humidity', 'mdi:water-percent')}></ha-icon>
                         <span class="tb-hover-tooltip-name">${tgtName}</span>
                         <span class="tb-hover-tooltip-value">${Math.round(humV)} %</span>
+                    </div>
+                ` : nothing}
+                ${target === 'curtain' && isFinite(curtainOpenV) ? html`
+                    <div class="tb-hover-tooltip-row">
+                        <ha-icon class="tb-hover-tooltip-icon" style="color:${CURTAIN_COLOR}" icon="mdi:blinds-horizontal"></ha-icon>
+                        <span class="tb-hover-tooltip-name">${tgtName}</span>
+                        <span class="tb-hover-tooltip-value">${Math.round(curtainOpenV)}% open</span>
                     </div>
                 ` : nothing}
                 ${target === 'cost' && isFinite(costV) ? html`

@@ -55,6 +55,8 @@ export interface DayStrand
     colour:    string;
     //Drawn dashed: the battery SoC, a level rather than a flow.
     dashed?:   boolean;
+    //Keep smooth span control points within endpoint bounds for a metric with a hard range such as 0-100%.
+    bounded?:  boolean;
     //Per-slot colour, for a strand that changes hue along its length (the battery power + SoC, tinted by charge /
     //discharge / idle at each slot). null at a slot falls back to `colour`.
     segColours?: (string | null)[];
@@ -135,7 +137,9 @@ export function slotOfMs(ms: number, slots: number): number
 //line down towards it. The curve would hook into the earth just before it stops, which reads as the metric
 //collapsing rather than as data running out. Clamping the missing neighbour onto the span's own end lets the line
 //leave flat, at the height it really had.
-function splineSpan(pts: [number, number][], i: number, closed: boolean, ok?: (k: number) => boolean): string
+export function splineSpan(
+    pts: [number, number][], i: number, closed: boolean, ok?: (k: number) => boolean, bounded = false
+): string
 {
     const n = pts.length;
     const wrap = (k: number): number => (closed ? ((k % n) + n) % n : Math.min(n - 1, Math.max(0, k)));
@@ -156,9 +160,16 @@ function splineSpan(pts: [number, number][], i: number, closed: boolean, ok?: (k
     //Standard Catmull-Rom -> Bezier control points (tension 1/6). splineAt evaluates this same cubic, so anything
     //that has to sit on the drawn line agrees with it by construction.
     const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    let c1y = p1[1] + (p2[1] - p0[1]) / 6;
     const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    let c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    if (bounded)
+    {
+        const minY = Math.min(p1[1], p2[1]);
+        const maxY = Math.max(p1[1], p2[1]);
+        c1y = Math.max(minY, Math.min(maxY, c1y));
+        c2y = Math.max(minY, Math.min(maxY, c2y));
+    }
     return `M ${p1[0].toFixed(2)} ${p1[1].toFixed(2)}`
          + ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
 }
@@ -523,7 +534,7 @@ export function renderDayCurve(camera: SceneCamera, curve: DayCurveData, sun: Cu
                 }
                 const n = 0.5 * (near01[i] + near01[j]);
                 out.spans.push({
-                    d: splineSpan(topPts, i, true, hasAt),
+                    d: splineSpan(topPts, i, true, hasAt, st.bounded),
                     w: CURVE_WIDTH_FAR + (CURVE_WIDTH_NEAR - CURVE_WIDTH_FAR) * n,
                     //A span is a prediction if either end is: the changeover then lands ON a sample rather than
                     //between two, so solid meets dashed exactly where the readings stop.

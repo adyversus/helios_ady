@@ -21,10 +21,19 @@ export const MIN_DISPLAY_RADIUS_M     = 0;
 export const MAX_DISPLAY_RADIUS_M     = 250;
 //Scene magnification (`scene-zoom`): the camera's px-per-metre is multiplied by it, so the ground, the buildings
 //and the shadows grow around the home while the HUD (arc, discs, chips) keeps its card-fitted size. 1 = as-is.
-export const SCENE_ZOOM_LEVELS = [1, 1.5, 2] as const;
+export const SCENE_ZOOM_LEVELS = [0.5, 0.75, 1, 1.5, 2] as const;
 export const DEFAULT_SCENE_ZOOM = 1;
 export const DEFAULT_BUILDING_OPACITY          = 0.5;   //ghost surround; home stays 1.0
 export const DEFAULT_BUILDING_CLUSTER_RADIUS_M = 0;     //0 = single-polygon home detection
+export const DEFAULT_WINDOW_SILL_HEIGHT_M = 0;
+export const MAX_WINDOW_SILL_HEIGHT_M = 50;
+export const DEFAULT_WINDOW_AZIMUTH_DEG = 272;
+export const DEFAULT_WINDOW_LENGTH_M = 1.2;
+export const DEFAULT_WINDOW_HEIGHT_M = 0.9;
+export const MAX_WINDOW_COUNT = 16;
+export const INCHES_PER_METER = 39.37007874015748;
+export const DEFAULT_CURTAIN_MAX_DEPTH_M = 1;
+export const MAX_CURTAIN_DEPTH_M = 50;
 
 //=== Data cadence + value precision ===
 //Buckets/hour for the unified store + every graph (4 = 15 min, max 6 = 10 min).

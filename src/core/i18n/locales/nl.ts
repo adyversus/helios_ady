@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Dutch locale.
 export const nl: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Een realtime 2.5D-weergave van je huis met de zon, het weer, de zonneproductie, de batterij en het net, plus geprojecteerde schaduwen en een interactieve tijdlijn",
 

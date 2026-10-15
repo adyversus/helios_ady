@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Finnish locale.
 export const fi: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Reaaliaikainen 2.5D-näkymä kodistasi auringon, sään, aurinkotuotannon, akun ja verkon kanssa, lisäksi heitetyt varjot ja vuorovaikutteinen aikajana",
 

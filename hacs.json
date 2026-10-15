@@ -1,6 +1,6 @@
 {
-  "name": "Helios",
-  "filename": "helios.js",
+  "name": "Helios_ady",
+  "filename": "helios_ady.js",
   "homeassistant": "2026.1.0",
   "hacs": "1.32.0",
   "render_readme": true

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildTimelineModel } from '../src/timeline/timeline-model';
+import { buildTimelineModel, formatTimelineLabel } from '../src/timeline/timeline-model';
+import type { HassLike } from '../src/core/ha-types';
 
 const HOUR = 3_600_000;
 
@@ -36,5 +37,18 @@ describe('buildTimelineModel memo', () =>
         const start = new Date('2024-06-01T00:00:00Z');
         const model = buildTimelineModel({}, start, new Date(start.getTime() + 3 * 24 * HOUR));
         expect(Array.isArray(model.dayBoundaries)).toBe(true);
+    });
+});
+
+describe('formatTimelineLabel', () =>
+{
+    it('honours Home Assistant 24-hour time format', () =>
+    {
+        const hass = {
+            language: 'en',
+            locale: { time_format: '24' },
+        } as HassLike;
+
+        expect(formatTimelineLabel('intraday', new Date(2024, 5, 1, 13, 5), hass)).toBe('13:05');
     });
 });

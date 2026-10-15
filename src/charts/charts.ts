@@ -7,6 +7,7 @@ import { type HeliosConfig, monitoringGroupName } from '../core/config/helios-co
 import { type ChipSlot, chipSlotColor } from '../core/config/chip-appearance';
 import type { EnergyDefaults } from '../data/sources/energy-prefs';
 import type { UnifiedDataStore } from '../data/unifiedStore';
+import type { EvaluatedWindowGeometry } from '../scene/window-markers';
 import type { ChangeBucket } from '../data/sources/energy-stats';
 import { ENERGY_COLOR, lerpHexToward } from '../core/format/format';
 
@@ -32,7 +33,7 @@ export type GroupTarget = typeof GROUP_TARGETS[number];
 //Re-targetable bottom-chart target: the single series-set the chart draws at a time. 'production' (default) adds
 //the dashed forecast + per-source breakdown; 'grid'/'battery' draw two-direction flows (accent = dominant side);
 //'irradiance' draws W/m2 on a fixed 0..1000 scale; 'group-N' draws the group's per-device consumption curves.
-export type ChartTarget = 'production' | 'consumption' | 'grid' | 'battery' | 'battery-soc' | 'irradiance' | 'temperature' | 'humidity' | 'cost' | GroupTarget;
+export type ChartTarget = 'production' | 'consumption' | 'grid' | 'battery' | 'battery-soc' | 'irradiance' | 'temperature' | 'humidity' | 'curtain' | 'cost' | GroupTarget;
 
 //How a day-curve strand takes its colour, resolved live against the theme by resolveStrandColour so a theme flip
 //is never baked into the data memo. `token` is a fixed chip-slot colour (production, grid import/export, ...);
@@ -40,6 +41,7 @@ export type ChartTarget = 'production' | 'consumption' | 'grid' | 'battery' | 'b
 export type StrandFlowDir = 'charge' | 'discharge' | 'idle';
 export type StrandColour =
     | { kind: 'token';   token: ChipSlot }
+    | { kind: 'literal'; color: string }
     | { kind: 'device';  index: number }
     | { kind: 'solar';   index: number }
     | { kind: 'grid';    index: number; dir: 'import' | 'export' }
@@ -123,12 +125,12 @@ export function batterySourceName(host: ChartHost, index: number, dir: 'charge' 
 //editable name (or "Group N"); everything else comes from here or from statFriendly.
 const TARGET_LABELS_EN: Record<Exclude<ChartTarget, GroupTarget>, string> = {
     production: 'Production', consumption: 'Consumption', grid: 'Grid', battery: 'Battery',
-    'battery-soc': 'Battery charge', irradiance: 'Irradiance', temperature: 'Temperature', humidity: 'Humidity',
+    'battery-soc': 'Battery charge', irradiance: 'Irradiance', temperature: 'Temperature', humidity: 'Humidity', curtain: 'Curtain open',
     cost: 'Cost',
 };
 const TARGET_LABELS_FR: Record<Exclude<ChartTarget, GroupTarget>, string> = {
     production: 'Production', consumption: 'Consommation', grid: 'Réseau', battery: 'Batterie',
-    'battery-soc': 'Charge batterie', irradiance: 'Irradiance', temperature: 'Température', humidity: 'Humidité',
+    'battery-soc': 'Charge batterie', irradiance: 'Irradiance', temperature: 'Température', humidity: 'Humidité', curtain: 'Ouverture du rideau',
     cost: 'Coût',
 };
 export function targetLabel(host: ChartHost, target: ChartTarget): string
@@ -151,6 +153,7 @@ export interface ChartHost
     readonly _energyDefaults: EnergyDefaults;
     readonly _timeRange:    { start: Date; end: Date } | null;
     readonly _chartSeries:  ChartSeries | null;
+    readonly _selectedWindowId: string | null;
     //Recorder `change` series (recorder-period buckets) for the solar meter(s). sumChangeForDay sums exact per-day kWh so
     //totals match HA Energy to the watt-hour, not the gap-interpolated curve.
     readonly _pvChangeSeries: ChangeBucket[] | null;
@@ -167,6 +170,10 @@ export interface ChartHost
     //Unified rolling-window data source, single point of truth for the production + forecast curves. Null only between mount
     //and first build, when the chart degrades to an empty curve.
     readonly _unifiedStore: UnifiedDataStore | null;
+    readonly _engine?: {
+        getCurtainOpenPercent(atDate?: Date, windowId?: string): number | null;
+        getWindowEvaluations(atDate?: Date): EvaluatedWindowGeometry[];
+    };
     //Cost + compensation `change` series (net money per bucket), for the cost target's curve (any tariff). Null
     //until fetched or when no cost statistic is configured.
     readonly _costImportSeries: ChangeBucket[] | null;

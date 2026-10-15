@@ -22,6 +22,8 @@ import { tintedRgba, buildingColor } from '../core/render-kit/colors';
 import { mixHex, hexByte, rgbaHex } from '../core/render-kit/hex';
 import { pointsAttr, clipPolygon, cardClipRect, pointInPolygon, type Point, type ClipRect } from '../core/render-kit/geometry';
 import { fetchOfmBuildingRings, type OfmRing } from './openfreemap';
+import type { EvaluatedWindowGeometry } from './window-markers';
+import { renderWindow } from './window-renderer';
 import { DEG, SHADOW_FADE_DEG, MAX_SHADOW_M,
     FIXED_BUILDING_HEIGHT_M,
     MAX_BUILDING_COUNT,
@@ -969,7 +971,10 @@ export function renderBuildings(
     neighborOpacity = 0.25,
     home:            HomeAppearance = {},
     //Degrees from north, clockwise. Without it a wall cannot know whether it faces the light.
-    sunAzimuth       = 180
+    sunAzimuth       = 180,
+    windowStates:    readonly EvaluatedWindowGeometry[] = [],
+    windowAzimuthArrow = false,
+    selectedWindowId: string | null = null
 ): SceneShape[]
 {
     //Horizontal direction TOWARDS the sun, and how much sun there is to give. The fade tracks the shadows' own, so
@@ -1014,13 +1019,30 @@ export function renderBuildings(
     const nbLit     = mixHex(nb, '#000000', 0.04);
     const nbStroke  = mixHex(nb, '#000000', 0.30);
     const neighborOp = Math.max(0, Math.min(1, neighborOpacity));
+    const windowsByEdge = new Map<number, EvaluatedWindowGeometry[]>();
+    for (const window of windowStates)
+    {
+        if (!window.geometry || window.errors.length > 0)
+        {
+            continue;
+        }
+        const group = windowsByEdge.get(window.geometry.edgeIndex);
+        if (group)
+        {
+            group.push(window);
+        }
+        else
+        {
+            windowsByEdge.set(window.geometry.edgeIndex, [window]);
+        }
+    }
 
     //One face list for EVERY building, home included: the scene paints by true depth, so a neighbour nearer the
     //camera than the home occludes it exactly as it would occlude another neighbour, and a farther one still
     //sits behind. `order` (paintOrder, already a global far-to-near topological sort) decides insertion order;
     //the stable sort below only re-settles it by the finer per-face depth, so a tie between two faces (touching
     //buildings sharing a wall depth exactly) keeps the topological order's answer instead of an arbitrary one.
-    const faces: { depth: number; shape: SceneShape; detail?: SceneShape }[] = [];
+    const faces: { depth: number; shape: SceneShape; detail?: SceneShape; details?: SceneShape[] }[] = [];
     for (const { index } of order)
     {
         const b  = buildings[index];
@@ -1048,7 +1070,6 @@ export function renderBuildings(
         }
         const strokeW   = b.isHome ? '1' : '0.4';
         const roofStrokeW = b.isHome ? '1' : '0.6';
-
         //Emit each visible wall into the shared face list (sorted globally below), for every ring of the block.
         //Every vertex is projected ONCE per frame, base and roof, and the depth comes along with the pixel: the
         //wall sort key and the roof (ring, depth) read the same projections rather than running them again.
@@ -1116,10 +1137,25 @@ export function renderBuildings(
                     continue;
                 }
                 const wall: SceneShape = { tag: 'polygon', geom: pointsAttr(wq), fill: wallFill, stroke, strokeWidth: strokeW };
+                let windowShapes: SceneShape[] | undefined;
+                const windowsOnWall = b.isHome && ring === fp ? windowsByEdge.get(i) : undefined;
+                if (windowsOnWall)
+                {
+                    windowShapes = windowsOnWall.flatMap((window) =>
+                        renderWindow(
+                            cam,
+                            rect,
+                            window,
+                            windowAzimuthArrow,
+                            growth * (home.growth ?? 1),
+                            window.id === selectedWindowId
+                        )
+                    );
+                }
                 //Sort key = the wall's NEAREST corner (max cameraZ, larger = nearer). On a concave footprint an
                 //edge-midpoint depth mis-orders two facing walls; the nearest-point does not.
                 const wallDepth = Math.max(pBase[i].depth, pBase[next].depth, pRoof[i].depth, pRoof[next].depth);
-                faces.push({ depth: wallDepth, shape: wall });
+                faces.push({ depth: wallDepth, shape: wall, details: windowShapes });
             }
         }
         //Flat roof at its own nearest-corner depth (the outer ring's, gathered above). It sits at the top so in any
@@ -1158,6 +1194,10 @@ export function renderBuildings(
         if (f.detail)
         {
             out.push(f.detail);
+        }
+        if (f.details)
+        {
+            out.push(...f.details);
         }
     }
     return out;
@@ -1208,5 +1248,10 @@ function simplifiedRings(b: Building): Point[][]
     const rings = [simplifyFootprint(b.footprint), ...(b.holes ?? []).map(simplifyFootprint)];
     _simplifyCache.set(b, rings);
     return rings;
+}
+
+export function windowFacadeFootprint(building: Building): Point[]
+{
+    return simplifiedRings(building)[0] ?? building.footprint;
 }
 

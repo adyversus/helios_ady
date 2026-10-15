@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Lithuanian locale.
 export const lt: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Realaus laiko 2.5D tavo namų vaizdas su saule, oru, saulės gamyba, akumuliatoriumi ir tinklu, taip pat metami šešėliai ir interaktyvi laiko juosta",
 

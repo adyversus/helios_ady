@@ -49,6 +49,10 @@ const STATIC_VISUAL_CONFIG_KEYS = [
     'building-count',
     'building-real-size',
     'building-height',
+    'window-sill-height',
+    'curtain-max-depth',
+    'window-azimuth-arrow',
+    'windows',
     'building-opacity',
     'auto-rotate-enabled',
     //Lock toggle: a change triggers updateConfig, which freezes/frees the camera at its current (drag-set) pose and
