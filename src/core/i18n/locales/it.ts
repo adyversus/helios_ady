@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Italian locale.
 export const it: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Una vista 2.5D in tempo reale di casa tua con il sole, il meteo, la produzione solare, la batteria e la rete, oltre alle ombre proiettate e una linea temporale interattiva",
 

@@ -12,7 +12,7 @@ import type { Translations } from "../index";
  */
 
 export const en: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ A real-time 2.5D view of your home with the sun, weather, solar production, battery and grid, plus cast shadows and an interactive timeline",
 

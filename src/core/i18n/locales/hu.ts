@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Hungarian locale.
 export const hu: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Otthonod valós idejű 2.5D nézete a nappal, az időjárással, a napelemes termeléssel, az akkumulátorral és a hálózattal, ráadásul vetett árnyékokkal és interaktív idővonallal",
 

@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Latvian locale.
 export const lv: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Reāllaika 2.5D skats uz tavu māju ar sauli, laikapstākļiem, saules ražošanu, akumulatoru un tīklu, kā arī mestas ēnas un interaktīva laika josla",
 

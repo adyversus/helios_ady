@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Icelandic locale.
 export const isLocale: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Rauntíma 2.5D-sýn af heimilinu þínu með sólinni, veðrinu, sólarframleiðslu, rafhlöðu og raforkukerfi, auk varpaðra skugga og gagnvirks tímaáss",
 

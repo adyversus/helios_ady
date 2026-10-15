@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Romanian locale.
 export const ro: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ O vedere 2.5D in timp real a casei tale cu soarele, vremea, productia solara, bateria si reteaua, plus umbre proiectate si o cronologie interactiva",
 

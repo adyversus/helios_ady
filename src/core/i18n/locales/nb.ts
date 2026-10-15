@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Norwegian Bokmal locale.
 export const nb: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ En 2.5D-visning i sanntid av hjemmet ditt med solen, været, solproduksjon, batteri og strømnett, pluss kastede skygger og en interaktiv tidslinje",
 

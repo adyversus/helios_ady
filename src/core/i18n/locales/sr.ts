@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Serbian (Cyrillic) locale.
 export const sr: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ 2.5D приказ твог дома у реалном времену са сунцем, временом, соларном производњом, батеријом и мрежом, плус бачене сенке и интерактивна временска трака",
 

@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Greek locale.
 export const el: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ Μια προβολή 2.5D του σπιτιού σου σε πραγματικό χρόνο με τον ήλιο, τον καιρό, τη φωτοβολταϊκή παραγωγή, την μπαταρία και το δίκτυο, καθώς και ριγμένες σκιές και μια διαδραστική χρονογραμμή",
 

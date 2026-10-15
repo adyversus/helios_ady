@@ -2,7 +2,7 @@ import type { Translations } from "../index";
 
 //Swedish locale.
 export const sv: Translations = {
-  cardName: "Helios",
+  cardName: "Helios_ady",
   cardDescription:
     "☀️ En 2.5D-vy i realtid av ditt hem med solen, vädret, solproduktion, batteri och elnät, plus kastade skuggor och en interaktiv tidslinje",
 
