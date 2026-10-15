@@ -110,7 +110,7 @@ To automate this task entirely inside **GitHub Copilot Chat**, copy and issue th
 Paste this directly into your Lovelace raw configuration YAML editor block once code compilation is finished to visually render all 8 tracking zones simultaneously:
 
 ```yaml
-type: custom:helios-card
+type: custom:helios-ady-card
 windows_list:
   - { id: w1, name: "Living South 1", x: 2, y: -5, azimuth: 180, width: 2.0 }
   - { id: w2, name: "Living South 2", x: 5, y: -5, azimuth: 180, width: 2.0 }

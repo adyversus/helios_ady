@@ -11,7 +11,7 @@ This document defines the behavior contract for the multi-window implementation,
 Windows are configured as an ordered list. Each entry has a stable configuration ID, a building target, and an outward-facing azimuth.
 
 ```yaml
-type: custom:helios-card
+type: custom:helios-ady-card
 window-sill-height: 0.8
 windows:
   - id: living-room

@@ -38,7 +38,7 @@ is missing.
 Minimal config:
 
 ```yaml
-type: custom:helios-card
+type: custom:helios-ady-card
 ```
 
 The visual editor exposes every option below. Direct YAML editing also works.
