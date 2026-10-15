@@ -236,6 +236,7 @@ function buildTargetSeries(
         host._batteryChargeChangeSeriesPerEntity, host._batteryDischargeChangeSeriesPerEntity,
         host._deviceChangeSeries,
         host._engine,
+        host._selectedWindowId,
     ];
     const cached = _targetSeriesCache.get(host);
     if (cached
