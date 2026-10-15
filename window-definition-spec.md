@@ -26,6 +26,7 @@ windows:
     label: BR
     building: home
     azimuth: 104
+    azimuth-mode: requested
     length: 1.2
     width: 0.9
 ```
@@ -38,6 +39,7 @@ windows:
 | `label` | no | Short user-facing name shown on the curtain button and in details, for example `LR`. If omitted, derive a readable name from `id`. Labels do not need to be unique. |
 | `building` | yes | `home` in the initial implementation. Targeting other mapped buildings is deferred until stable source IDs are preserved through interpretation and merging. |
 | `azimuth` | yes | Desired outward-facing bearing in degrees, clockwise from north. `0` is north, `90` east, `180` south, and `270` west. Values are normalized into `[0, 360)`. |
+| `azimuth-mode` | no | `facade` (default) uses the resolved wall azimuth for calculations and arrow direction; `requested` uses the configured azimuth for calculations and arrow direction. The pane remains on the resolved facade in both modes. The previous `arrow-direction` key is accepted as a compatibility alias. |
 | `length` | no | Horizontal span along the facade, in metres. Defaults to `1.2`. |
 | `width` | no | Vertical glass height, in metres. Defaults to `0.9`. |
 | `along-facade` | no | Signed horizontal displacement from the facade midpoint, in metres. Positive follows the selected outer-ring edge direction; defaults to `0`. Each window is positioned independently; its distance to neighboring windows determines the gap, so no separate gap field is required. |

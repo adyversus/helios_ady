@@ -11,6 +11,47 @@ const PREVIEW_WINDOWS = [
     { id: 'piano-room1', label: 'PR1', building: 'home', azimuth: 245, 'along-facade': -2.4 },
     { id: 'piano-room2', label: 'PR2', building: 'home', azimuth: 245, 'along-facade': -3.6 },
 ];
+const PREVIEW_CONFIG_KEY = 'helios-dev-preview-config';
+
+function createDefaultPreviewConfig(): Record<string, unknown>
+{
+    return {
+        'home-latitude': hass.config.latitude,
+        'home-longitude': hass.config.longitude,
+        'window-sill-height': 1.2,
+        'curtain-max-depth': 1,
+        'window-azimuth-arrow': true,
+        windows: PREVIEW_WINDOWS.map((window) => ({ ...window })),
+        'chip-home-visible': false,
+        'chip-production-visible': false,
+        'chip-grid-visible': false,
+        'chip-battery-visible': false,
+        'weather-enabled': false,
+        'auto-rotate-enabled': false,
+    };
+}
+
+function loadPreviewConfig(): Record<string, unknown>
+{
+    const defaults = createDefaultPreviewConfig();
+    try
+    {
+        const saved = localStorage.getItem(PREVIEW_CONFIG_KEY);
+        if (saved)
+        {
+            const parsed: unknown = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+            {
+                return { ...defaults, ...parsed as Record<string, unknown> };
+            }
+        }
+    }
+    catch
+    {
+        //Disabled or corrupt local storage falls back to the sample config.
+    }
+    return defaults;
+}
 
 const PREVIEW_ICON_GLYPHS: Record<string, string> = {
     'mdi:blinds': '▤',
@@ -101,24 +142,81 @@ const card = document.querySelector('helios-card') as (HTMLElement & {
     preview: boolean;
     setConfig: (config: Record<string, unknown>) => void;
 }) | null;
+const editor = document.querySelector('helios-card-editor') as (HTMLElement & {
+    hass: HassLike;
+    setConfig: (config: Record<string, unknown>) => void;
+    updateComplete: Promise<unknown>;
+}) | null;
+const resetButton = document.querySelector<HTMLButtonElement>('#reset-preview-settings');
+const settingsStatus = document.querySelector<HTMLOutputElement>('#preview-settings-status');
 
 if (!card) {
     throw new Error('Helios preview element was not found');
 }
+if (!editor) {
+    throw new Error('Helios settings editor was not found');
+}
+const previewCard = card;
 
-card.preview = true;
-card.setConfig({
-    'home-latitude': hass.config.latitude,
-    'home-longitude': hass.config.longitude,
-    'window-sill-height': 1.2,
-    'curtain-max-depth': 1,
-    'window-azimuth-arrow': true,
-    windows: PREVIEW_WINDOWS,
-    'chip-home-visible': false,
-    'chip-production-visible': false,
-    'chip-grid-visible': false,
-    'chip-battery-visible': false,
-    'weather-enabled': false,
-    'auto-rotate-enabled': false,
+const previewConfig = loadPreviewConfig();
+
+function applyPreviewConfig(config: Record<string, unknown>, save: boolean): void
+{
+    previewCard.setConfig(config);
+    if (save)
+    {
+        try
+        {
+            localStorage.setItem(PREVIEW_CONFIG_KEY, JSON.stringify(config));
+            if (settingsStatus)
+            {
+                settingsStatus.value = 'Saved in this browser';
+            }
+        }
+        catch
+        {
+            if (settingsStatus)
+            {
+                settingsStatus.value = 'Changes apply until this page reloads';
+            }
+        }
+    }
+}
+
+previewCard.preview = true;
+applyPreviewConfig(previewConfig, false);
+previewCard.hass = hass;
+
+editor.hass = hass;
+editor.setConfig(previewConfig);
+editor.addEventListener('config-changed', (event) =>
+{
+    const next = (event as CustomEvent<{ config: Record<string, unknown> }>).detail?.config;
+    if (next)
+    {
+        applyPreviewConfig(next, true);
+    }
 });
-card.hass = hass;
+resetButton?.addEventListener('click', () =>
+{
+    try
+    {
+        localStorage.removeItem(PREVIEW_CONFIG_KEY);
+    }
+    catch
+    {
+        //Reset still applies to the live preview when storage is unavailable.
+    }
+    const defaults = createDefaultPreviewConfig();
+    editor.setConfig(defaults);
+    applyPreviewConfig(defaults, false);
+    if (settingsStatus)
+    {
+        settingsStatus.value = 'Sample settings restored';
+    }
+});
+
+void editor.updateComplete.then(() =>
+{
+    editor.shadowRoot?.querySelector<HTMLElement>('[data-section="windows"] > summary')?.click();
+});

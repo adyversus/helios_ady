@@ -666,6 +666,7 @@ export interface WindowDefinition
     label:              string;
     building:           'home';
     azimuthDeg:         number;
+    azimuthMode:        'facade' | 'requested';
     lengthM:            number;
     widthM:             number;
     alongFacadeM:       number;
@@ -717,6 +718,7 @@ export function resolveWindowDefinitions(config: HeliosConfig | undefined): Wind
                 label: 'Window',
                 building: 'home',
                 azimuthDeg: DEFAULT_WINDOW_AZIMUTH_DEG,
+                azimuthMode: 'facade',
                 lengthM: DEFAULT_WINDOW_LENGTH_M,
                 widthM: DEFAULT_WINDOW_HEIGHT_M,
                 alongFacadeM: 0,
@@ -763,6 +765,11 @@ export function resolveWindowDefinitions(config: HeliosConfig | undefined): Wind
         const alongFacade = source['along-facade'] === undefined ? 0 : configNumber(source['along-facade']);
         const maxDepth = source['curtain-max-depth'] === undefined
             ? curtainDefault : configNumber(source['curtain-max-depth']);
+        const rawAzimuthMode = source['azimuth-mode'] !== undefined
+            ? source['azimuth-mode'] : source['arrow-direction'];
+        const azimuthMode = rawAzimuthMode === undefined || rawAzimuthMode === 'facade'
+            ? 'facade'
+            : rawAzimuthMode === 'requested' ? 'requested' : null;
         if (azimuth === null)
         {
             errors.push('azimuth must be a finite number');
@@ -783,6 +790,10 @@ export function resolveWindowDefinitions(config: HeliosConfig | undefined): Wind
         {
             errors.push(`curtain-max-depth must be between 0 and ${MAX_CURTAIN_DEPTH_M} metres`);
         }
+        if (azimuthMode === null)
+        {
+            errors.push('azimuth-mode must be facade or requested');
+        }
         if (errors.length > 0)
         {
             return { id, label, definition: null, errors };
@@ -796,6 +807,7 @@ export function resolveWindowDefinitions(config: HeliosConfig | undefined): Wind
                 label,
                 building: 'home',
                 azimuthDeg: ((azimuth! % 360) + 360) % 360,
+                azimuthMode: azimuthMode ?? 'facade',
                 lengthM: length!,
                 widthM: width!,
                 alongFacadeM: alongFacade!,

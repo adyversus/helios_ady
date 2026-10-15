@@ -196,6 +196,8 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
         const rows: DetailMetric[] = [
             { label: 'Window', value: `${selectedWindow.label} (${selectedWindow.id})` },
             { label: 'Azimuth', value: `${Math.round(definition.azimuthDeg)}° requested, ${Math.round(geometry.azimuthDeg)}° facade` },
+            { label: 'Azimuth behavior', value: definition.azimuthMode === 'requested' ? 'Requested azimuth' : 'Resolved facade' },
+            { label: 'Calculation azimuth', value: `${Math.round(evaluation?.calculationAzimuthDeg ?? geometry.azimuthDeg)}°` },
             { label: 'Dimensions', value: `${definition.lengthM.toFixed(1)} × ${definition.widthM.toFixed(1)} m` },
             { label: 'Sill height', value: `${geometry.corners[0][2].toFixed(1)} m` },
             { label: 'Sun exposure', value: evaluation?.exposure.state.replace(/_/g, ' ').toLowerCase() ?? 'Unavailable' },

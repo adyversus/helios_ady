@@ -678,6 +678,15 @@ export class HeliosCardEditor extends LitElement
         {
             entry[field] = raw;
         }
+        else if (field === 'azimuth-mode')
+        {
+            if (raw !== 'facade' && raw !== 'requested')
+            {
+                return;
+            }
+            entry[field] = raw;
+            delete entry['arrow-direction'];
+        }
         else if (raw === '')
         {
             delete entry[field];
@@ -1665,6 +1674,14 @@ export class HeliosCardEditor extends LitElement
                                 <span class="label">Azimuth (°)</span>
                                 <input type="number" min="0" max="359" step="1" .value=${windowLengthValue(entry, index, 'azimuth')} data-window-index=${index} data-window-field="azimuth" @change=${this._onWindowFieldChange} />
                             </label>
+                            <div class="field-block">
+                                <span class="label">Azimuth behavior</span>
+                                <div class="hint">Resolved facade uses the wall bearing for the arrow and sun/curtain calculations. Requested azimuth uses the configured bearing for both; the window stays on the resolved wall.</div>
+                                <div class="field">
+                                    <button type="button" class="seg-option ${(entry['azimuth-mode'] ?? entry['arrow-direction']) !== 'requested' ? 'active' : ''}" value="facade" data-window-index=${index} data-window-field="azimuth-mode" aria-pressed=${(entry['azimuth-mode'] ?? entry['arrow-direction']) !== 'requested'} @click=${this._onWindowFieldChange}>Resolved facade</button>
+                                    <button type="button" class="seg-option ${(entry['azimuth-mode'] ?? entry['arrow-direction']) === 'requested' ? 'active' : ''}" value="requested" data-window-index=${index} data-window-field="azimuth-mode" aria-pressed=${(entry['azimuth-mode'] ?? entry['arrow-direction']) === 'requested'} @click=${this._onWindowFieldChange}>Requested azimuth</button>
+                                </div>
+                            </div>
                             <label class="field">
                                 <span class="label">Length (${sillUnit})</span>
                                 <input type="number" min="0.1" step="0.1" .value=${windowLengthValue(entry, index, 'length')} data-window-index=${index} data-window-field="length" @change=${this._onWindowFieldChange} />

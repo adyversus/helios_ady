@@ -99,7 +99,7 @@ export function renderWindow(
         (sum, corner) => [sum[0] + corner[0] / 4, sum[1] + corner[1] / 4, sum[2] + corner[2] / 4],
         [0, 0, 0] as [number, number, number]
     );
-    const [arrowEast, arrowNorth] = displayGeometry.arrowDirection;
+    const [arrowEast, arrowNorth] = window.arrowDirection ?? displayGeometry.arrowDirection;
     const start = cam.project3(center[0], center[1], center[2] * verticalScale);
     const end = cam.project3(
         center[0] + arrowEast * 1.2,

@@ -25,12 +25,14 @@ export interface ResolvedWindowGeometry extends WindowDefinitionEntry
 {
     geometry:        CenteredWindow | null;
     displayGeometry: CenteredWindow | null;
+    arrowDirection:  Point | null;
     warnings:        string[];
 }
 
 export interface WindowEvaluation
 {
     exposure:                WindowSunExposure;
+    calculationAzimuthDeg:   number;
     curtainClosedFraction:   number;
     openPercent:             number;
 }
@@ -181,7 +183,7 @@ export function resolveWindowGeometries(
         const definition = entry.definition;
         if (!definition)
         {
-            return { ...entry, errors, geometry: null, displayGeometry: null, warnings };
+            return { ...entry, errors, geometry: null, displayGeometry: null, arrowDirection: null, warnings };
         }
         const geometry = centeredWindowOnFacade(
             footprint,
@@ -211,7 +213,13 @@ export function resolveWindowGeometries(
                 definition.alongFacadeM
             )
             : null;
-        return { ...entry, errors, geometry, displayGeometry, warnings };
+        const requestedAzimuth = definition.azimuthDeg * DEG;
+        const arrowDirection = geometry
+            ? definition.azimuthMode === 'requested'
+                ? [Math.sin(requestedAzimuth), Math.cos(requestedAzimuth)] as Point
+                : geometry.arrowDirection
+            : null;
+        return { ...entry, errors, geometry, displayGeometry, arrowDirection, warnings };
     });
 
     const overlaps = new Map<number, string[]>();
@@ -272,16 +280,21 @@ export function evaluateWindowGeometries(
         {
             return { ...entry, evaluation: null };
         }
+        const calculationAzimuthDeg = definition.azimuthMode === 'requested'
+            ? definition.azimuthDeg : geometry.azimuthDeg;
+        const calculationGeometry = calculationAzimuthDeg === geometry.azimuthDeg
+            ? geometry : { ...geometry, azimuthDeg: calculationAzimuthDeg };
         const exposure = evaluateWindowSunExposure(
-            geometry, occluders, sunAzimuthDeg, sunAltitudeDeg, horizonAltitudeDeg
+            calculationGeometry, occluders, sunAzimuthDeg, sunAltitudeDeg, horizonAltitudeDeg
         );
         const curtainClosedFraction = calculateCurtainClosedFraction(
-            geometry, exposure, sunAzimuthDeg, sunAltitudeDeg, definition.curtainMaxDepthM
+            calculationGeometry, exposure, sunAzimuthDeg, sunAltitudeDeg, definition.curtainMaxDepthM
         );
         return {
             ...entry,
             evaluation: {
                 exposure,
+                calculationAzimuthDeg,
                 curtainClosedFraction,
                 openPercent: Math.round((1 - curtainClosedFraction) * 100),
             },

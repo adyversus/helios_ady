@@ -119,6 +119,7 @@ describe('windowDefinitions config', () =>
             id: 'legacy-window',
             building: 'home',
             azimuthDeg: DEFAULT_WINDOW_AZIMUTH_DEG,
+            azimuthMode: 'facade',
             lengthM: 1.2,
             widthM: 0.9,
             alongFacadeM: 0,
@@ -136,6 +137,11 @@ describe('windowDefinitions config', () =>
         expect(entries[0].errors).toEqual([]);
         expect(entries[1].definition).toBeNull();
         expect(entries[1].errors.length).toBeGreaterThan(0);
+
+        const [legacyArrowMode] = resolveWindowDefinitions({
+            windows: [{ id: 'legacy-arrow-mode', building: 'home', azimuth: 104, 'arrow-direction': 'requested' }],
+        });
+        expect(legacyArrowMode.definition?.azimuthMode).toBe('requested');
 
         const tooMany = resolveWindowDefinitions({
             windows: Array.from({ length: 1000 }, (_, index) => ({
@@ -167,6 +173,29 @@ describe('resolveWindowGeometries', () =>
         expect(resolved.map((entry) => entry.geometry?.edgeIndex)).toEqual([0, 2]);
         expect(resolved.every((entry) => entry.errors.length === 0)).toBe(true);
         expect(resolved.map((entry) => entry.geometry?.corners[0][2])).toEqual([0.8, 0.8]);
+    });
+
+    it('uses requested azimuth for exposure and curtain calculations only when selected', () =>
+    {
+        const [requested] = resolveWindowGeometries(resolveWindowDefinitions({
+            windows: [{ id: 'requested', building: 'home', azimuth: 104, 'azimuth-mode': 'requested', 'curtain-max-depth': 0 }],
+        }), footprint, 6, 0.8);
+        const [facade] = resolveWindowGeometries(resolveWindowDefinitions({
+            windows: [{ id: 'facade', building: 'home', azimuth: 104, 'curtain-max-depth': 0 }],
+        }), footprint, 6, 0.8);
+        const [requestedEvaluation] = evaluateWindowGeometries([requested], [], 185, 40);
+        const [facadeEvaluation] = evaluateWindowGeometries([facade], [], 185, 40);
+
+        expect(requested.geometry?.azimuthDeg).toBeCloseTo(90);
+        expect(requestedEvaluation.evaluation?.calculationAzimuthDeg).toBe(104);
+        expect(requested.arrowDirection?.[0]).toBeCloseTo(Math.sin(104 * Math.PI / 180));
+        expect(requested.arrowDirection).not.toEqual(requested.geometry?.arrowDirection);
+        expect(requestedEvaluation.evaluation?.exposure.state).toBe('SUNLIT');
+        expect(requestedEvaluation.evaluation?.curtainClosedFraction).toBe(1);
+        expect(facade.arrowDirection).toEqual(facade.geometry?.arrowDirection);
+        expect(facadeEvaluation.evaluation?.calculationAzimuthDeg).toBeCloseTo(90);
+        expect(facadeEvaluation.evaluation?.exposure.state).toBe('NO_DIRECT_SUN');
+        expect(facadeEvaluation.evaluation?.curtainClosedFraction).toBe(0);
     });
 
     it('keeps the displayed pane vertically centered independently of the physical sill', () =>

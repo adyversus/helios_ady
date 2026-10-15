@@ -18,7 +18,7 @@
                 box-sizing: border-box;
             }
             main {
-                max-width: 1100px;
+                max-width: 1480px;
                 margin: 0 auto;
             }
             h1 {
@@ -26,9 +26,60 @@
                 font-size: 20px;
                 font-weight: 600;
             }
+            .dev-layout {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+                align-items: start;
+                gap: 24px;
+            }
+            .card-preview,
+            .settings-panel {
+                min-width: 0;
+            }
+            .settings-panel {
+                max-height: calc(100vh - 96px);
+                overflow: auto;
+                border-left: 1px solid rgba(40, 55, 50, 0.2);
+            }
+            h2 {
+                margin: 0 0 12px;
+                font-size: 14px;
+                font-weight: 600;
+            }
+            helios-card-editor {
+                display: block;
+            }
+            .settings-actions {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+                font-size: 12px;
+            }
+            .settings-actions button {
+                border: 1px solid rgba(40, 55, 50, 0.3);
+                border-radius: 4px;
+                padding: 6px 10px;
+                background: transparent;
+                color: inherit;
+                font: inherit;
+                cursor: pointer;
+            }
+            .settings-actions output {
+                color: #52635c;
+            }
             helios-card {
                 display: block;
                 min-height: 560px;
+            }
+            @media (max-width: 1000px) {
+                .dev-layout { grid-template-columns: minmax(0, 1fr); }
+                .settings-panel {
+                    max-height: none;
+                    border-left: 0;
+                    border-top: 1px solid rgba(40, 55, 50, 0.2);
+                    padding-top: 16px;
+                }
             }
             @media (max-width: 600px) {
                 body { padding: 12px; }
@@ -39,7 +90,20 @@
     <body>
         <main>
             <h1>Helios Component Preview</h1>
-            <helios-card></helios-card>
+            <div class="dev-layout">
+                <section class="card-preview" aria-labelledby="preview-title">
+                    <h2 id="preview-title">Card preview</h2>
+                    <helios-card></helios-card>
+                </section>
+                <aside class="settings-panel" aria-labelledby="settings-title">
+                    <h2 id="settings-title">Card settings</h2>
+                    <div class="settings-actions">
+                        <button type="button" id="reset-preview-settings">Reset sample settings</button>
+                        <output id="preview-settings-status" aria-live="polite">Changes save in this browser</output>
+                    </div>
+                    <helios-card-editor></helios-card-editor>
+                </aside>
+            </div>
         </main>
         <script type="module" src="/src/dev-preview.ts"></script>
     </body>
