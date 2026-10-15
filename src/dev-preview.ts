@@ -137,7 +137,7 @@ const hass: HassLike = {
     user: { is_admin: false },
 };
 
-const card = document.querySelector('helios-card') as (HTMLElement & {
+const card = document.querySelector('helios-ady-card') as (HTMLElement & {
     hass: HassLike;
     preview: boolean;
     setConfig: (config: Record<string, unknown>) => void;

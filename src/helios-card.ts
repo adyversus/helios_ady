@@ -123,7 +123,7 @@ const WINDOW_EXPOSURE_ICONS: Record<WindowSunState, string> = {
     FULLY_SHADED:       'mdi:weather-cloudy',
 };
 
-@customElement('helios-card')
+@customElement('helios-ady-card')
 export class HeliosCard extends LitElement
 {
     @property({ attribute: false }) public hass!: HassLike;

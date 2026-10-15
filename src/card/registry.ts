@@ -23,12 +23,12 @@ window.customCards = window.customCards || [];
 {
     const heliosEntry =
     {
-        type:        'helios-card',
+        type:        'helios-ady-card',
         name:        _bootI18n.cardName,
         description: _bootI18n.cardDescription,
         preview:     true,
     };
-    const existingIdx = window.customCards.findIndex(c => c.type === 'helios-card');
+    const existingIdx = window.customCards.findIndex(c => c.type === 'helios-ady-card');
     if (existingIdx >= 0)
     {
         window.customCards[existingIdx] = heliosEntry;
