@@ -1315,7 +1315,8 @@ export class HeliosCard extends LitElement
                 : openPercent >= 100 ? 'mdi:blinds-open'
                     : 'mdi:blinds-horizontal';
         const warning = window.warnings.join('; ');
-        const text = available ? `${window.label} ${openPercent}% open` : `${window.label} unavailable`;
+        const text = available ? `${window.label} ${openPercent}% open`
+            : `${window.label} unavailable: ${window.errors[0] ?? 'window geometry unavailable'}`;
         const hidden = this._dayCurveOpen
             && (this._chartTarget !== 'curtain' || this._selectedWindowId !== window.id);
         return this._cornerChip('humidity', text, hidden, {
@@ -1323,7 +1324,7 @@ export class HeliosCard extends LitElement
             icon: curtainIcon,
             statusIcon: available && exposure ? WINDOW_EXPOSURE_ICONS[exposure] : undefined,
             target: available ? 'curtain' : null,
-            windowId: available ? window.id : undefined,
+            windowId: window.id,
             interactive: available,
             ariaLabel: available
                 ? `${window.label}: ${openPercent}% open, ${exposureState}.${warning ? ` ${warning}.` : ''} Show window timeline and details.`

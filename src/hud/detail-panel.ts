@@ -176,11 +176,19 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
             return [];
         }
         const windows = engine.getWindowEvaluations();
-        const selectedWindow = windows.find((window) => window.id === host._selectedWindowId && window.definition)
-            ?? windows.find((window) => window.definition !== null);
-        if (!selectedWindow?.definition || !selectedWindow.geometry)
+        const selectedWindow = windows.find((window) => window.id === host._selectedWindowId)
+            ?? windows.find((window) => window.definition !== null)
+            ?? windows[0];
+        if (!selectedWindow)
         {
             return [];
+        }
+        if (!selectedWindow.definition || !selectedWindow.geometry)
+        {
+            return [
+                { label: 'Window', value: `${selectedWindow.label} (${selectedWindow.id})` },
+                { label: 'Status', value: selectedWindow.errors.join('; ') || 'Window geometry is unavailable' },
+            ];
         }
         const definition = selectedWindow.definition;
         const geometry = selectedWindow.geometry;

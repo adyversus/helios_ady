@@ -214,6 +214,7 @@ export function resolveWindowGeometries(
         return { ...entry, errors, geometry, displayGeometry, warnings };
     });
 
+    const overlaps = new Map<number, string[]>();
     for (let i = 0; i < resolved.length; i++)
     {
         const first = resolved[i];
@@ -235,14 +236,21 @@ export function resolveWindowGeometries(
             const secondEnd = second.definition.alongFacadeM + second.definition.lengthM / 2;
             if (Math.min(firstEnd, secondEnd) - Math.max(firstStart, secondStart) > 1e-6)
             {
-                first.geometry = null;
-                first.displayGeometry = null;
-                second.geometry = null;
-                second.displayGeometry = null;
-                first.errors.push(`overlaps window ${second.id} on the same facade`);
-                second.errors.push(`overlaps window ${first.id} on the same facade`);
+                const firstOverlaps = overlaps.get(i) ?? [];
+                firstOverlaps.push(second.id);
+                overlaps.set(i, firstOverlaps);
+                const secondOverlaps = overlaps.get(j) ?? [];
+                secondOverlaps.push(first.id);
+                overlaps.set(j, secondOverlaps);
             }
         }
+    }
+    for (const [index, windowIds] of overlaps)
+    {
+        const entry = resolved[index];
+        entry.geometry = null;
+        entry.displayGeometry = null;
+        entry.errors.push(`overlaps window${windowIds.length === 1 ? '' : 's'} ${windowIds.join(', ')} on the same facade`);
     }
     return resolved;
 }

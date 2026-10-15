@@ -55,6 +55,11 @@ import
 } from '../core/config/helios-config';
 import { isDarkFromCss, cssHex, resolveUiColor } from '../core/format/format';
 
+function windowDefinitionsSignature(config: HeliosConfig | undefined): string
+{
+    return JSON.stringify(resolveWindowDefinitions(config)) ?? '';
+}
+
 
 //Module-scope cache for the RAW (option-independent) building footprints. HA re-creates the card element
 //on every config commit; a fresh engine picks up the already-fetched raw data synchronously, skipping the
@@ -438,11 +443,12 @@ export class HeliosEngine
     private _getWindowGeometryCache(): NonNullable<typeof this._windowGeometryCache>
     {
         const buildings = this._buildingsData;
-        const rawWindows = this.cfg?.windows;
+        const definitionsSignature = this._windowDefinitionsSignature;
         const sillHeightM = windowSillHeight(this.cfg);
         const globalCurtainDepthM = curtainMaxDepthM(this.cfg);
         const cached = this._windowGeometryCache;
-        if (cached && cached.buildings === buildings && cached.rawWindows === rawWindows
+        if (cached && cached.buildings === buildings
+            && cached.windowDefinitionsSignature === definitionsSignature
             && cached.sillHeightM === sillHeightM && cached.globalCurtainDepthM === globalCurtainDepthM)
         {
             return cached;
@@ -461,7 +467,7 @@ export class HeliosEngine
         this._windowEvaluationMemo.clear();
         const next = {
             buildings,
-            rawWindows,
+            windowDefinitionsSignature: definitionsSignature,
             sillHeightM,
             globalCurtainDepthM,
             revision: this._windowGeometryRevision,
@@ -630,9 +636,10 @@ export class HeliosEngine
     //for. _buildingsData is the INTERPRETED Building[] the renderer draws, recomputed in memory on every
     //option change with no re-fetch.
     private _buildingsData:   Building[] | null    = null;
+    private _windowDefinitionsSignature = '';
     private _windowGeometryCache?: {
         buildings: Building[] | null;
-        rawWindows: unknown;
+        windowDefinitionsSignature: string;
         sillHeightM: number;
         globalCurtainDepthM: number;
         revision: number;
@@ -727,6 +734,7 @@ export class HeliosEngine
             ? haElevation
             : undefined;
         this.cfg      = { ...config };
+        this._windowDefinitionsSignature = windowDefinitionsSignature(this.cfg);
         this._editMode = editMode;
         //Set before _initMapInstance: the renderer reads the stored camera pose (keyed on cacheKey) at boot.
         this.cacheKey = cacheKey;
@@ -2651,6 +2659,7 @@ export class HeliosEngine
         const prevAutoRotateOn = this.cfg['auto-rotate-enabled'] === true;
         const prevCameraLocked = this.isCameraLocked();
         const prevZoom         = sceneZoom(this.cfg);
+        this._windowDefinitionsSignature = windowDefinitionsSignature(cfg);
         this.cfg = { ...cfg };
         if (prevWindowArrow !== windowAzimuthArrowEnabled(this.cfg))
         {

@@ -9,6 +9,7 @@ import {
     curtainOverlayCorners,
     evaluateWindowSunExposure,
     WindowEvaluationCache,
+    type CenteredWindow,
     DEFAULT_WINDOW_AZIMUTH_DEG,
 } from '../src/scene/window-markers';
 
@@ -196,6 +197,24 @@ describe('resolveWindowGeometries', () =>
         expect(gap.every((entry) => entry.geometry && entry.errors.length === 0)).toBe(true);
         expect(overlap.every((entry) => entry.geometry === null && entry.errors.length > 0)).toBe(true);
     });
+
+    it('invalidates every window in a chained overlap', () =>
+    {
+        const entries = resolveWindowDefinitions({
+            windows: [
+                { id: 'left', building: 'home', azimuth: 180, length: 1.2, 'along-facade': 0 },
+                { id: 'middle', building: 'home', azimuth: 180, length: 1.2, 'along-facade': 0.8 },
+                { id: 'right', building: 'home', azimuth: 180, length: 1.2, 'along-facade': 1.6 },
+            ],
+        });
+        const resolved = resolveWindowGeometries(entries, footprint, 6, 0.8);
+
+        expect(resolved.map((entry) => entry.geometry)).toEqual([null, null, null]);
+        expect(resolved[0].errors.join(' ')).toContain('middle');
+        expect(resolved[1].errors.join(' ')).toContain('left');
+        expect(resolved[1].errors.join(' ')).toContain('right');
+        expect(resolved[2].errors.join(' ')).toContain('middle');
+    });
 });
 
 describe('evaluateWindowGeometries', () =>
@@ -307,8 +326,13 @@ describe('calculateCurtainClosedFraction', () =>
         const window = {
             edgeIndex: 0,
             azimuthDeg: 270,
+            configuredAzimuthDeg: 270,
+            azimuthDifferenceDeg: 0,
+            edgeLengthM: 1,
+            alongFacadeM: 0,
+            arrowDirection: [1, 0] as [number, number],
             corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1.5], [0, 0, 1.5]] as [number, number, number][],
-        };
+        } satisfies CenteredWindow;
         const exposure = {
             state: 'SUNLIT' as const,
             sunlitFraction: 1,
@@ -338,8 +362,13 @@ describe('curtainOverlayCorners', () =>
         const window = {
             edgeIndex: 0,
             azimuthDeg: 270,
+            configuredAzimuthDeg: 270,
+            azimuthDifferenceDeg: 0,
+            edgeLengthM: 1,
+            alongFacadeM: 0,
+            arrowDirection: [1, 0] as [number, number],
             corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1.5], [0, 0, 1.5]] as [number, number, number][],
-        };
+        } satisfies CenteredWindow;
         const overlay = curtainOverlayCorners(window, 0.6153);
 
         expect(overlay).not.toBeNull();
