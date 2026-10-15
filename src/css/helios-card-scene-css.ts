@@ -181,6 +181,7 @@ export const heliosCardStyles = css`
     .helios-details-toggle[aria-pressed="true"]
     {
         color: var(--primary-color, #03a9f4);
+        box-shadow: 0 0 12px 1px color-mix(in srgb, var(--primary-color, #03a9f4) 90%, transparent);
     }
 
 
@@ -327,6 +328,12 @@ export const heliosCardStyles = css`
     .helios-corner-chip.is-chart-active::after
     {
         opacity: 1;
+    }
+    .helios-corner-chip[data-window-id].is-chart-active
+    {
+        background: color-mix(in srgb, var(--chip-glow) 16%, var(--card-background-color, #fff));
+        outline: 2px solid var(--chip-glow);
+        outline-offset: 2px;
     }
 
     /*  Day curve in two depth passes around the chip cluster, mirroring the solar arc's own layering: far half

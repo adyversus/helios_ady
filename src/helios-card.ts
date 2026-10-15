@@ -1369,7 +1369,8 @@ export class HeliosCard extends LitElement
         const icon    = options.icon ?? chipSlotIcon(this.config, slot);
         //Same re-targeting gesture as the scene chips: one tap points the chart + around-house curve at this
         //metric, a second tap on the active chip toggles its day curve (onChartTargetClick).
-        const active  = interactive && target !== null && this._chartTarget === target;
+        const active  = interactive && target !== null && this._chartTarget === target
+            && (options.windowId === undefined || this._selectedWindowId === options.windowId);
         const curveOn = active && this._dayCurveOpen;
         //A hidden chip carries is-slot-hidden (visibility:hidden): it reserves its width but is automatically
         //inert, unfocusable and out of the a11y tree, so role/tabindex/click can stay static.
@@ -1545,7 +1546,11 @@ export class HeliosCard extends LitElement
                 //Without this the prism keeps the engine's default colour while the chip shows another mode.
                 || _changedProperties.has('_engine')))
         {
-            this.updateHomeAppearance(_changedProperties.has('_chartTarget'));
+            const animateHome = _changedProperties.has('_chartTarget')
+                && this._chartTarget !== 'temperature'
+                && this._chartTarget !== 'humidity'
+                && this._chartTarget !== 'curtain';
+            this.updateHomeAppearance(animateHome);
         }
 
         //Day curve. One pass over the day's slots off data already in hand, so the gate below is only to keep it
@@ -1565,6 +1570,7 @@ export class HeliosCard extends LitElement
                 //curve is one gate behind.
                 || _changedProperties.has('_dayCurveT')
                 || _changedProperties.has('_chartTarget')
+                || _changedProperties.has('_selectedWindowId')
                 || _changedProperties.has('_unifiedStore')
                 //The group and battery curves read these; a late data arrival on the active target has to wake it.
                 || _changedProperties.has('_deviceChangeSeries')
