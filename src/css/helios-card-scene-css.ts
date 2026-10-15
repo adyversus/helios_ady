@@ -448,8 +448,8 @@ export const heliosCardStyles = css`
         flex-direction: column;
         gap: 2px;
         box-sizing: border-box;
-        /*  Fixed width: the panel never reflows with content; long device friendly names ellipsise instead. */
-        width: 160px;
+        /*  Bounded responsive width keeps detail rows readable without letting long values escape the panel. */
+        width: min(260px, calc(100% - 16px));
         padding: 6px 10px;
         border: 2px solid var(--detail-accent, var(--primary-color, #03a9f4));
         /*  A floating readout, not a card: the generic radius token, not --ha-card-border-radius. A "single card"
@@ -511,7 +511,10 @@ export const heliosCardStyles = css`
     .detail-panel .dp-row span
     {
         flex: 1 1 auto;
+        min-width: 0;
         text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .detail-panel .dp-note
     {
@@ -536,9 +539,13 @@ export const heliosCardStyles = css`
     }
     .detail-panel .dp-row-device .dp-value
     {
-        flex: 0 0 auto;
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 75%;
         text-align: right;
         margin-left: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /*  Predicted PV chip when scrubbing into the future: the value is modelled, not measured, so the
@@ -1056,6 +1063,17 @@ export const heliosCardStyles = css`
         position: relative;
         border-color: var(--chip-color, #e53935);
         color: var(--primary-text-color, #212121);
+    }
+    .helios-corner-chip[data-window-id]
+    {
+        width: fit-content;
+        max-width: min(320px, calc(100% - 16px));
+    }
+    .helios-corner-chip[data-window-id] span
+    {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     /*  Day-curve open: each non-active corner chip becomes an inert, invisible placeholder. It still reserves its
         slot width so the centered row does not shift the surviving chip when its siblings drop out.  */

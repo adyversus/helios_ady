@@ -171,9 +171,37 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
     {
         const store = host._unifiedStore;
         const engine = host._engine;
-        if (!store || !engine)
+        if (!engine)
         {
             return [];
+        }
+        const windows = engine.getWindowEvaluations();
+        const selectedWindow = windows.find((window) => window.id === host._selectedWindowId && window.definition)
+            ?? windows.find((window) => window.definition !== null);
+        if (!selectedWindow?.definition || !selectedWindow.geometry)
+        {
+            return [];
+        }
+        const definition = selectedWindow.definition;
+        const geometry = selectedWindow.geometry;
+        const evaluation = selectedWindow.evaluation;
+        const rows: DetailMetric[] = [
+            { label: 'Window', value: `${selectedWindow.label} (${selectedWindow.id})` },
+            { label: 'Azimuth', value: `${Math.round(definition.azimuthDeg)}° requested, ${Math.round(geometry.azimuthDeg)}° facade` },
+            { label: 'Dimensions', value: `${definition.lengthM.toFixed(1)} × ${definition.widthM.toFixed(1)} m` },
+            { label: 'Sill height', value: `${geometry.corners[0][2].toFixed(1)} m` },
+            { label: 'Sun exposure', value: evaluation?.exposure.state.replace(/_/g, ' ').toLowerCase() ?? 'Unavailable' },
+            { label: 'Sunlit glass', value: `${Math.round((evaluation?.exposure.sunlitFraction ?? 0) * 100)}%` },
+            { label: 'Open now', value: evaluation ? `${evaluation.openPercent}%` : 'Unavailable' },
+            { label: 'Maximum depth', value: `${definition.curtainMaxDepthM.toFixed(1)} m` },
+        ];
+        if (selectedWindow.warnings.length > 0)
+        {
+            rows.push({ label: 'Direction warning', value: selectedWindow.warnings.join('; ') });
+        }
+        if (!store)
+        {
+            return rows;
         }
         let min = Infinity;
         let max = -Infinity;
@@ -186,7 +214,7 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
             {
                 continue;
             }
-            const value = engine.getCurtainOpenPercent(new Date(tMs));
+            const value = engine.getCurtainOpenPercent(new Date(tMs), host._selectedWindowId ?? undefined);
             if (value === null)
             {
                 continue;
@@ -198,9 +226,9 @@ function buildMetrics(host: DetailHost, target: ChartTarget): DetailMetric[]
         }
         if (count === 0)
         {
-            return [];
+            return rows;
         }
-        return [
+        return [...rows,
             { label: 'Maximum open', value: `${Math.round(max)}%` },
             { label: 'Average open', value: `${Math.round(sum / count)}%` },
             { label: 'Minimum open', value: `${Math.round(min)}%` },

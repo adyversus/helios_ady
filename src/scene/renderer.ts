@@ -12,6 +12,7 @@ import { pxPerMetreFor, type Ground } from './tiles';
 import { buildVectorGround, GROUND_LAYER_KEYS, type GroundStyle, type GroundPalette, type VectorGround } from './ground-render';
 import { groundPoolKey, offerGround, takeGround } from './ground-pool';
 import { renderBuildings, renderShadows, type Building, type ScenePalette, type HomeAppearance } from './buildings';
+import type { EvaluatedWindowGeometry } from './window-markers';
 import { SceneSvgLayers, type SceneDocument, type SceneNode } from './scene-dom';
 import { gradeColor } from '../core/render-kit/colors';
 import {
@@ -284,9 +285,9 @@ export class SceneRenderer
     //home-position change landing while the previous tile grid is still fetching).
     private _groundToken = 0;
     private _buildings: Building[] = [];
-    private _windowSillHeightM = 0;
-    private _curtainMaxDepthM = 1;
     private _windowAzimuthArrow = false;
+    private _windowStates: readonly EvaluatedWindowGeometry[] = [];
+    private _selectedWindowId: string | null = null;
     private _sun = { azimuth: 0, altitude: 0, horizonAltitude: 0 };
     private _growth = 1;
     //Home prism appearance (colour, squash multiplier). Empty colour falls back to palette.home.
@@ -597,28 +598,6 @@ export class SceneRenderer
         this.scheduleRedraw();
     }
 
-    public setWindowSillHeight(heightM: number): void
-    {
-        if (this._windowSillHeightM === heightM)
-        {
-            return;
-        }
-        this._windowSillHeightM = heightM;
-        this._sceneRev++;
-        this.scheduleRedraw();
-    }
-
-    public setCurtainMaxDepth(depthM: number): void
-    {
-        if (this._curtainMaxDepthM === depthM)
-        {
-            return;
-        }
-        this._curtainMaxDepthM = depthM;
-        this._sceneRev++;
-        this.scheduleRedraw();
-    }
-
     public setWindowAzimuthArrow(enabled: boolean): void
     {
         if (this._windowAzimuthArrow === enabled)
@@ -626,6 +605,28 @@ export class SceneRenderer
             return;
         }
         this._windowAzimuthArrow = enabled;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setWindowStates(states: readonly EvaluatedWindowGeometry[]): void
+    {
+        if (this._windowStates === states)
+        {
+            return;
+        }
+        this._windowStates = states;
+        this._sceneRev++;
+        this.scheduleRedraw();
+    }
+
+    public setSelectedWindowId(windowId: string | null): void
+    {
+        if (this._selectedWindowId === windowId)
+        {
+            return;
+        }
+        this._selectedWindowId = windowId;
         this._sceneRev++;
         this.scheduleRedraw();
     }
@@ -873,7 +874,10 @@ export class SceneRenderer
             //The day/night atmosphere is the graded ground palette + the altitude-tinted buildings.
             this._sceneLayers.commit(
                 renderShadows(this.camera, drawn, this._sun, gradedShadow, this._palette.shadowOpacity),
-                renderBuildings(this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity, gradedHome, this._sun.azimuth, this._windowSillHeightM, this._sun.horizonAltitude, this._curtainMaxDepthM, this._windowAzimuthArrow),
+                renderBuildings(
+                    this.camera, drawn, alt, gradedPalette, this._growth, this._palette.neighborOpacity,
+                    gradedHome, this._sun.azimuth, this._windowStates, this._windowAzimuthArrow, this._selectedWindowId
+                ),
             );
         }
 

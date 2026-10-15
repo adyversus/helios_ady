@@ -4,7 +4,7 @@
 
 Define multiple exterior windows with independent azimuths, geometry, curtain simulation, telemetry, and details. A window is a physical scene object attached to a building facade; it is not a screen-space marker or a Home Assistant cover entity.
 
-This document specifies the target behavior for the multi-window implementation. The current renderer still draws one default-azimuth home window; this spec does not describe behavior that is already implemented.
+This document defines the behavior contract for the multi-window implementation, including compatibility with the legacy implicit home window.
 
 ## Configuration
 
@@ -25,7 +25,7 @@ windows:
   - id: bedroom-rom
     label: BR
     building: home
-    azimuth: 0
+    azimuth: 104
     length: 1.2
     width: 0.9
 ```
@@ -52,7 +52,7 @@ Raw YAML is normalized at the configuration boundary: `core/config/helios-config
 - If `windows` is absent, retain the existing single home-window behavior, including the default azimuth and global sill/curtain settings.
 - If `windows` is present as an empty list, render no windows.
 - If `windows` contains entries, those entries replace the implicit legacy window; do not also render the legacy window.
-- Render exactly one curtain button per window definition: one for the legacy implicit window when `windows` is absent, one per entry when explicitly configured, and none for `windows: []`.
+- Render one curtain button per supported definition (maximum 16): one for the legacy implicit window when `windows` is absent, one per configured entry up to the limit, and none for `windows: []`. For lists longer than 16, keep the first 16 for processing and show one aggregate overflow diagnostic/button for the remainder.
 - All windows on the home use the shared global `window-sill-height`; `curtain-max-depth` may be overridden per window.
 - The existing `window-azimuth-arrow` setting remains a global visibility toggle. When enabled, render an arrow for every configured window, pointing along that window's resolved outward facade normal.
 
@@ -88,7 +88,7 @@ Expose one canonical per-window result keyed by `id`. Its resolved geometry incl
 - Camera bearing, pitch, zoom, viewport size, and pointer position are not exposure inputs and must not invalidate geometry or exposure/curtain evaluation caches.
 - On camera or viewport changes, project and draw from the cached world-space geometry and evaluation using the current camera. Projection and shape generation still run when needed to keep the scene aligned.
 - Invalidate only affected cache stages: window/config or building changes invalidate geometry and evaluations; sun/time/horizon/occluder/curtain changes invalidate evaluations; camera-only changes invalidate neither.
-- Define and document a maximum supported window count before release. Benchmark representative counts (1, 4, 8, and 16 windows) against the maximum supported building count, then choose the limit from the measured target-device budget.
+- V1 supports at most 16 usable window definitions. Keep the first 16 entries and show one aggregate overflow diagnostic/button for any excess entries; do not resolve/evaluate/render the excess. Disable the editor's Add action at 16. Before raising this limit, benchmark 1, 4, 8, and 16 windows against the maximum building count on target devices.
 
 The building renderer consumes those results and is responsible for building-level ordering and occlusion. It must not redo facade selection, sun-exposure sampling, or curtain math. The curtain buttons and details consume the same evaluation result and only format/display its values; they must not independently recalculate percentages or states.
 
@@ -132,7 +132,7 @@ These values are simulations derived from sun position, terrain horizon, buildin
 - Create all curtain buttons through one reusable button component/template. Generate the button list from the window definitions and pass each window's `id`, label, evaluation values, availability, and activation handler as data; do not write separate button markup or behavior for individual windows.
 - Each button preserves the existing curtain chip behavior: show that window's displayed name and simulated values and, when activated, open the same timeline/detail experience for that window. Select the window by `id` so its curtain chart and details cannot show another window's values.
 - Each button also shows its current selected-time state; values must not be aggregated across windows.
-- Keep one-to-one button count even for invalid definitions by showing a disabled/unavailable button with its validation error and no fabricated telemetry. The legacy implicit window gets one button; an explicitly empty list gets none.
+- Show one button for each of the first 16 definitions, including a disabled/unavailable button for each invalid entry; do not fabricate telemetry. For further entries, show only one disabled aggregate overflow button. The legacy implicit window gets one button; an explicitly empty list gets none.
 - The detail view for the selected window shows its target, configured/resolved azimuth and mismatch warning when applicable, dimensions, shared sill height, current state, sunlit fraction, curtain closed/open values, and max sunlight depth.
 - Details follow the card's selected timeline time. Historical and forecast values are recalculated from the corresponding scene inputs; do not present modeled values as recorded sensor history.
 - Keep the selected window keyed by `id` across reordering and live config updates. If that ID is removed, clear the selection or select the first remaining valid window deterministically.
@@ -160,6 +160,6 @@ The `core/config` resolver reports malformed entries and normalizes finite azimu
 - Add telemetry tests proving two windows at different azimuths can independently report different sun states and curtain values at the same instant.
 - Add an integration test proving the scene renderer and window details expose the same per-window evaluation values, rather than calculating them separately.
 - Add cache tests proving camera-only changes reuse resolved geometry and exposure/curtain evaluations, relevant input changes invalidate the correct cache stages, and the evaluation cache remains bounded.
-- Benchmark representative window counts against the maximum building count and document the resulting supported window limit before release.
-- Add UI/state tests proving button count matches the resolved window definitions, each button opens its own timeline/details, and selection remains associated with its ID after list reordering.
+- Benchmark 1, 4, 8, and 16 windows against the maximum building count on target devices before raising the V1 limit of 16.
+- Add UI/state tests proving button count matches the first 16 definitions plus at most one overflow diagnostic, each valid button opens its own timeline/details, and selection remains associated with its ID after list reordering.
 - Keep the legacy implicit-window behavior covered until migration compatibility is deliberately removed.

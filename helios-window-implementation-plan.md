@@ -28,6 +28,7 @@ V1 targets `building: home` only. All windows use the global `window-sill-height
 
 - Add typed `WindowDefinition` parsing and defaults in `core/config/helios-config.ts`; include optional `id`, `label`, `building: 'home'`, azimuth, dimensions, `along-facade`, and per-window curtain depth.
 - Convert absent `windows` to the legacy default and preserve an explicit empty list as no windows.
+- Bound parsing and editor rendering to the first 16 definitions plus one aggregate overflow diagnostic; preserve excess raw entries until the user explicitly removes them.
 - Validate IDs and values at the config boundary; keep all YAML dimensions in metres and convert only in editor controls.
 - Include `windows` in `VISUAL_CONFIG_KEYS` and add editor controls for label, azimuth, dimensions, placement, and curtain depth. Target `home` only in V1.
 
@@ -48,9 +49,9 @@ V1 targets `building: home` only. All windows use the global `window-sill-height
 - Cache time-dependent evaluations by window ID, evaluation time, and relevant input revisions. Keep the evaluation cache bounded.
 - Camera pose, viewport, zoom, and pointer changes must not invalidate geometry or sun/curtain calculations; projection and drawing still use the current camera.
 - Invalidate geometry plus dependent evaluations on building/window-definition changes. Invalidate evaluations on sun/time, horizon, occluder, sill, or curtain-setting changes.
-- Benchmark 1, 4, 8, and 16 windows against the maximum building count, then set and document the supported window limit from target-device measurements.
+- V1 supports at most 16 usable windows; excess entries remain diagnosable but are not rendered. Benchmark 1, 4, 8, and 16 windows against the maximum building count on target devices before raising this limit.
 
-**Gate:** Cache tests cover camera-only reuse, correct invalidation, and bounded retention. Record benchmark results and the chosen window limit.
+**Gate:** Cache tests cover camera-only reuse, correct invalidation, and bounded retention. Record target-device benchmark results before increasing the V1 window limit of 16.
 
 ### 5. Add One Reusable Window Renderer
 

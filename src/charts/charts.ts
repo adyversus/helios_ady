@@ -7,6 +7,7 @@ import { type HeliosConfig, monitoringGroupName } from '../core/config/helios-co
 import { type ChipSlot, chipSlotColor } from '../core/config/chip-appearance';
 import type { EnergyDefaults } from '../data/sources/energy-prefs';
 import type { UnifiedDataStore } from '../data/unifiedStore';
+import type { EvaluatedWindowGeometry } from '../scene/window-markers';
 import type { ChangeBucket } from '../data/sources/energy-stats';
 import { ENERGY_COLOR, lerpHexToward } from '../core/format/format';
 
@@ -152,6 +153,7 @@ export interface ChartHost
     readonly _energyDefaults: EnergyDefaults;
     readonly _timeRange:    { start: Date; end: Date } | null;
     readonly _chartSeries:  ChartSeries | null;
+    readonly _selectedWindowId: string | null;
     //Recorder `change` series (recorder-period buckets) for the solar meter(s). sumChangeForDay sums exact per-day kWh so
     //totals match HA Energy to the watt-hour, not the gap-interpolated curve.
     readonly _pvChangeSeries: ChangeBucket[] | null;
@@ -168,7 +170,10 @@ export interface ChartHost
     //Unified rolling-window data source, single point of truth for the production + forecast curves. Null only between mount
     //and first build, when the chart degrades to an empty curve.
     readonly _unifiedStore: UnifiedDataStore | null;
-    readonly _engine?: { getCurtainOpenPercent(atDate?: Date): number | null };
+    readonly _engine?: {
+        getCurtainOpenPercent(atDate?: Date, windowId?: string): number | null;
+        getWindowEvaluations(atDate?: Date): EvaluatedWindowGeometry[];
+    };
     //Cost + compensation `change` series (net money per bucket), for the cost target's curve (any tariff). Null
     //until fetched or when no cost statistic is configured.
     readonly _costImportSeries: ChangeBucket[] | null;

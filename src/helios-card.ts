@@ -4,6 +4,7 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { HassLike } from './core/ha-types';
 import type { HeliosEngine, WeatherOverrideVar } from './scene/helios-engine';
+import type { EvaluatedWindowGeometry, WindowSunState } from './scene/window-markers';
 import
 {
     type HeliosConfig,
@@ -20,6 +21,7 @@ import
     horizonLineColor,
     sceneZoom,
     windowAzimuthArrowEnabled,
+    resolveWindowDefinitions,
 } from './core/config/helios-config';
 import { chipSlotColor, chipSlotIcon } from './core/config/chip-appearance';
 import { buildDayProfile, daySlots, type ProfileStrand } from './data/period-totals/day-profile';
@@ -113,6 +115,13 @@ const _cacheIdRegistry = new Map<string, HeliosCard[]>();
 
 //Main card
 
+
+const WINDOW_EXPOSURE_ICONS: Record<WindowSunState, string> = {
+    NO_DIRECT_SUN:      'mdi:weather-sunny-off',
+    SUNLIT:             'mdi:white-balance-sunny',
+    PARTIALLY_SHADED:   'mdi:weather-partly-cloudy',
+    FULLY_SHADED:       'mdi:weather-cloudy',
+};
 
 @customElement('helios-card')
 export class HeliosCard extends LitElement
@@ -274,6 +283,7 @@ export class HeliosCard extends LitElement
     @state() _chartHoverPct: number | null = null;
     //Active bottom-chart target: the single re-targetable chart draws this series-set; a chip tap re-points it.
     @state() _chartTarget: ChartTarget = 'production';
+    @state() _selectedWindowId: string | null = null;
     //True once the user has picked a chip or a saved pick was restored. Until then the target tracks the first
     //available chip as the Energy config resolves (see updated()), so a card with no solar never sits on an empty
     //production selection at load.
@@ -294,6 +304,7 @@ export class HeliosCard extends LitElement
     private _dayCurveMemo?: {
         dayStartMs: number;
         target:     ChartTarget;
+        selectedWindowId: string | null;
         store:      unknown;
         pv:         unknown;
         perEntity:  unknown;
@@ -441,6 +452,13 @@ export class HeliosCard extends LitElement
             throw new Error('Invalid HELIOS configuration');
         }
         this.config = { ...config };
+        const windowEntries = resolveWindowDefinitions(this.config);
+        if (this._selectedWindowId
+            && !windowEntries.some((entry) => entry.id === this._selectedWindowId && entry.definition !== null))
+        {
+            this._selectedWindowId = windowEntries.find((entry) => entry.definition !== null)?.id ?? null;
+            this.persistUiState();
+        }
         //The rolling window is driven by the timeline mode (timeline/timeline-modes.ts) + the persisted choice, so
         //setConfig doesn't seed it.
         //The weather master switch follows the config (default on); the layers re-apply via updated().
@@ -596,6 +614,27 @@ export class HeliosCard extends LitElement
         this._infoPanelOpen = true;
     };
 
+    private _onWindowCurtainClick = (e: Event): void =>
+    {
+        const windowId = (e.currentTarget as HTMLElement).dataset.windowId;
+        if (!windowId)
+        {
+            return;
+        }
+        const alreadySelected = this._chartTarget === 'curtain' && this._selectedWindowId === windowId;
+        this._selectedWindowId = windowId;
+        if (alreadySelected)
+        {
+            this._setDayCurveOpen(!this._dayCurveOpen);
+        }
+        else
+        {
+            this.setChartTarget('curtain');
+            this.persistUiState();
+        }
+        this._infoPanelOpen = true;
+    };
+
     //Last target the home prism was painted for, so updated() can tell a chip CHANGE (play the squash/grow)
     //from a same-chip scrub/tick (instant recolour). Undefined until the first paint (no squash on load).
     private _lastHomeTarget?: ChartTarget;
@@ -699,7 +738,7 @@ export class HeliosCard extends LitElement
         //
         //The key is everything the strands and the track READ: `_now` because today's profile is cut at the present
         //moment (coverage stops there, the forecast starts there); `_energyDefaults` because its meters decide the
-        //layer split; `_timeRange` because its absence makes the profile come back empty and a memo of that
+        //layer split; `_selectedWindowId` because curtain strands are per-window; `_timeRange` because its absence makes the profile come back empty and a memo of that
         //emptiness would outlive the range's arrival; `_deviceChangeSeries`, `_batterySocHistory` and
         //`_batterySocPerBankHistory` because the group and battery curves read them.
         const slots = daySlots(this.config);
@@ -707,6 +746,7 @@ export class HeliosCard extends LitElement
         const fresh = m !== undefined
             && m.dayStartMs === shownMs - serverMsOfDay(shownMs)
             && m.target     === target
+            && m.selectedWindowId === this._selectedWindowId
             && m.store      === this._unifiedStore
             && m.pv         === this._pvChangeSeries
             && m.perEntity  === this._pvChangeSeriesPerEntity
@@ -728,6 +768,7 @@ export class HeliosCard extends LitElement
             this._dayCurveMemo = {
                 dayStartMs: shownMs - serverMsOfDay(shownMs),
                 target,
+                selectedWindowId: this._selectedWindowId,
                 store:     this._unifiedStore,
                 pv:        this._pvChangeSeries,
                 perEntity: this._pvChangeSeriesPerEntity,
@@ -1263,22 +1304,36 @@ export class HeliosCard extends LitElement
         const hidden = this._dayCurveOpen && this._chartTarget !== 'humidity';
         return this._cornerChip('humidity', `${Math.round(this._humidity)} %`, hidden);
     }
-    private _renderCurtainChip(openPercent: number | null): TemplateResult | typeof nothing
+    private _renderCurtainChip(window: EvaluatedWindowGeometry): TemplateResult
     {
-        if (openPercent === null)
-        {
-            return nothing;
-        }
-        const closedPercent = 100 - openPercent;
-        const hidden = this._dayCurveOpen && this._chartTarget !== 'curtain';
-        return this._cornerChip('humidity', `${openPercent}% open`, hidden, {
+        const openPercent = window.evaluation?.openPercent;
+        const available = window.definition !== null && window.geometry !== null && openPercent !== undefined;
+        const exposure = window.evaluation?.exposure.state;
+        const exposureState = exposure?.replaceAll('_', ' ').toLowerCase();
+        const curtainIcon = !available ? 'mdi:blinds-horizontal'
+            : openPercent <= 0 ? 'mdi:blinds'
+                : openPercent >= 100 ? 'mdi:blinds-open'
+                    : 'mdi:blinds-horizontal';
+        const warning = window.warnings.join('; ');
+        const text = available ? `${window.label} ${openPercent}% open` : `${window.label} unavailable`;
+        const hidden = this._dayCurveOpen
+            && (this._chartTarget !== 'curtain' || this._selectedWindowId !== window.id);
+        return this._cornerChip('humidity', text, hidden, {
             color: '#607d8b',
-            icon: 'mdi:blinds-horizontal',
-            target: 'curtain',
-            ariaLabel: `Simulated curtain: ${openPercent}% open, ${closedPercent}% covered. Show timeline and details.`,
-            title: 'Show curtain timeline and details',
-            ariaExpanded: this._infoPanelOpen && this._chartTarget === 'curtain',
+            icon: curtainIcon,
+            statusIcon: available && exposure ? WINDOW_EXPOSURE_ICONS[exposure] : undefined,
+            target: available ? 'curtain' : null,
+            windowId: available ? window.id : undefined,
+            interactive: available,
+            ariaLabel: available
+                ? `${window.label}: ${openPercent}% open, ${exposureState}.${warning ? ` ${warning}.` : ''} Show window timeline and details.`
+                : `${window.label}: window unavailable. ${window.errors.join('; ')}`,
+            title: available
+                ? `${window.label}: ${openPercent}% open, ${exposureState}. Show its timeline and details${warning ? `. ${warning}` : ''}`
+                : window.errors.join('; '),
+            ariaExpanded: this._infoPanelOpen && this._chartTarget === 'curtain' && this._selectedWindowId === window.id,
             ariaControls: 'helios-detail-panel',
+            onClick: available ? this._onWindowCurtainClick : undefined,
         });
     };
     private _cornerChip(
@@ -1288,11 +1343,13 @@ export class HeliosCard extends LitElement
         options: {
             color?: string;
             icon?: string;
+            statusIcon?: string;
             interactive?: boolean;
             ariaLabel?: string;
             title?: string;
             ariaLive?: 'polite' | 'off';
             target?: ChartTarget | null;
+            windowId?: string;
             ariaExpanded?: boolean;
             ariaControls?: string;
             onClick?: (e: Event) => void;
@@ -1322,11 +1379,13 @@ export class HeliosCard extends LitElement
                 aria-expanded=${options.ariaExpanded ?? nothing}
                 aria-controls=${options.ariaControls ?? nothing}
                 data-target=${interactive && target !== null ? target : nothing}
+                data-window-id=${options.windowId ?? nothing}
                 @click=${options.onClick ?? (interactive ? this.onChartTargetClick : undefined)}
                 @keydown=${options.onKeyDown ?? (interactive ? this._onCornerChipKeyDown : undefined)}
             >
                 <ha-icon icon=${icon}></ha-icon>
                 <span>${text}</span>
+                ${options.statusIcon ? html`<ha-icon class="helios-corner-chip-status" icon=${options.statusIcon} aria-hidden="true"></ha-icon>` : nothing}
             </div>`;
     }
 
@@ -1444,6 +1503,7 @@ export class HeliosCard extends LitElement
 
         //Restore the saved selected chip once coords resolve (idempotent; retries until ready).
         this._restoreUiState();
+        this._engine?.setSelectedWindowId(this._chartTarget === 'curtain' ? this._selectedWindowId : null);
 
         //Default chart target: until the user has picked a chip (or a saved pick was restored), track the first
         //configured + visible target as the Energy config resolves (consumption -> production -> grid -> battery
@@ -1735,7 +1795,7 @@ export class HeliosCard extends LitElement
         //camera-locked swaps the grab cursor for the default arrow when drag-rotate is inert, so the open-hand cursor
         //isn't misleading. Re-evaluated every render.
         const cameraLocked = this._isCameraLocked();
-        const curtainOpenPercent = this._engine?.getCurtainOpenPercent() ?? null;
+        const windowEvaluations = this._engine?.getWindowEvaluations() ?? [];
         //Detail panel accent (from the active chip) drives both the panel border and the little "i" badge on the
         //open chip, so it lives as a card-level class + CSS var.
         const infoOpen = this._infoPanelOpen;
@@ -1807,7 +1867,7 @@ export class HeliosCard extends LitElement
                     ${this._renderCostChip()}
                     ${this._renderTempChip()}
                     ${this._renderHumidityChip()}
-                    ${this._renderCurtainChip(curtainOpenPercent)}
+                    ${windowEvaluations.map((window) => this._renderCurtainChip(window))}
                 </div>
 
                 ${timelineShown ? html`
@@ -1845,7 +1905,7 @@ export class HeliosCard extends LitElement
                                 @pointermove=${this._onChartHoverMove}
                                 @pointerleave=${this._onChartHoverLeave}
                             >
-                                ${keyed(`${this._chartTarget}|${this._timelineMode}`, renderBottomChart(this))}
+                                ${keyed(`${this._chartTarget}|${this._selectedWindowId ?? ''}|${this._timelineMode}`, renderBottomChart(this))}
                                 ${(this._timelineMode === 'forecast' || this._timelineMode === 'today' || this._timelineMode === 'yesterday' || this._timelineMode === 'week')
         ? renderTimelineNightZones(this) : nothing}
                                 ${renderTimelineFutureMask(this)}
@@ -1943,6 +2003,11 @@ export class HeliosCard extends LitElement
         if (this._infoPanelOpen)
         {
             this._infoPanelOpen = false;
+        }
+        if (this._selectedWindowId !== null)
+        {
+            this._selectedWindowId = null;
+            this.persistUiState();
         }
         //One gesture, one rule: a tap on the scene puts away everything a chip tap put up.
         this._setDayCurveOpen(false);
@@ -2085,6 +2150,11 @@ export class HeliosCard extends LitElement
                     this._chartTarget = parsed.chartTarget as ChartTarget;
                     this._chartTargetExplicit = true;
                 }
+                if (typeof parsed.selectedWindowId === 'string'
+                    && resolveWindowDefinitions(this.config).some((entry) => entry.id === parsed.selectedWindowId && entry.definition !== null))
+                {
+                    this._selectedWindowId = parsed.selectedWindowId;
+                }
                 if (typeof parsed.timelineMode === 'string' && parsed.timelineMode in TIMELINE_MODES)
                 {
                     this._timelineMode     = parsed.timelineMode as TimelineMode;
@@ -2110,6 +2180,7 @@ export class HeliosCard extends LitElement
         {
             window.localStorage.setItem(key, JSON.stringify({
                 chartTarget:  this._chartTarget,
+                selectedWindowId: this._selectedWindowId,
                 timelineMode: this._timelineMode,
             }));
         }

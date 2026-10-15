@@ -64,7 +64,7 @@ export function renderTimelineHoverTooltip(host: ChartHost): TemplateResult | ty
     const irrV = series ? interpAt(series.times, series.irradiance, atMs) : NaN;
     const tempV = series ? interpAt(series.times, series.temperature, atMs) : NaN;
     const humV  = series ? interpAt(series.times, series.humidity,    atMs) : NaN;
-    const curtainOpenV = host._engine?.getCurtainOpenPercent(new Date(atMs)) ?? NaN;
+    const curtainOpenV = host._engine?.getCurtainOpenPercent(new Date(atMs), host._selectedWindowId ?? undefined) ?? NaN;
     const cloudLowV  = series ? interpAt(series.times, series.cloudLow,  atMs) : NaN;
     const cloudMidV  = series ? interpAt(series.times, series.cloudMid,  atMs) : NaN;
     const cloudHighV = series ? interpAt(series.times, series.cloudHigh, atMs) : NaN;

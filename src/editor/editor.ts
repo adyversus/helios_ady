@@ -50,9 +50,10 @@ import
     mapShowKey,
     windowSillHeight,
     curtainMaxDepthM,
+    resolveWindowDefinitions,
     type MapThemeMode,
 } from '../core/config/helios-config';
-import { INCHES_PER_METER } from '../core/config/constants';
+import { DEFAULT_WINDOW_AZIMUTH_DEG, INCHES_PER_METER, MAX_WINDOW_COUNT } from '../core/config/constants';
 import { CHIP_SLOTS, chipSlotColor, chipSlotIcon, type ChipSlot } from '../core/config/chip-appearance';
 import { defaultGroundPalette, GROUND_LAYER_KEYS, type GroundLayerKey } from '../scene/ground-render';
 import { deviceColorByIndex, isDarkFromCss } from '../core/format/format';
@@ -621,6 +622,139 @@ export class HeliosCardEditor extends LitElement
             return;
         }
         this._update('curtain-max-depth', imperial ? value / INCHES_PER_METER : value);
+    };
+    private _windowEditEntries(): Record<string, unknown>[]
+    {
+        const raw = (this._cfg as Record<string, unknown>).windows;
+        if (Array.isArray(raw))
+        {
+            return raw.slice(0, MAX_WINDOW_COUNT).map((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)
+                ? { ...entry as Record<string, unknown> } : {});
+        }
+        if (raw === undefined)
+        {
+            const legacy = resolveWindowDefinitions(this._cfg)[0]?.definition;
+            return legacy ? [{
+                id: legacy.id,
+                label: legacy.label,
+                building: 'home',
+                azimuth: legacy.azimuthDeg,
+                length: legacy.lengthM,
+                width: legacy.widthM,
+                'along-facade': legacy.alongFacadeM,
+                'curtain-max-depth': legacy.curtainMaxDepthM,
+            }] : [];
+        }
+        return [];
+    }
+    private _windowOverflowCount(): number
+    {
+        const raw = (this._cfg as Record<string, unknown>).windows;
+        return Array.isArray(raw) ? Math.max(0, raw.length - MAX_WINDOW_COUNT) : 0;
+    }
+    private _commitWindowEntries(entries: Record<string, unknown>[], trimOverflow = false): void
+    {
+        const raw = (this._cfg as Record<string, unknown>).windows;
+        const excess = Array.isArray(raw) && !trimOverflow ? raw.slice(MAX_WINDOW_COUNT) : [];
+        this._update('windows', excess.length ? [...entries, ...excess] : entries);
+    }
+    private _onWindowFieldChange = (e: Event): void =>
+    {
+        const input = e.currentTarget as HTMLInputElement;
+        const index = Number(input.dataset.windowIndex);
+        const field = input.dataset.windowField;
+        if (!Number.isInteger(index) || !field)
+        {
+            return;
+        }
+        const entries = this._windowEditEntries();
+        const entry = entries[index];
+        if (!entry)
+        {
+            return;
+        }
+        const raw = input.value.trim();
+        if (field === 'id' || field === 'label')
+        {
+            entry[field] = raw;
+        }
+        else if (raw === '')
+        {
+            delete entry[field];
+        }
+        else
+        {
+            const value = Number(raw);
+            if (!Number.isFinite(value))
+            {
+                return;
+            }
+            const isLength = field === 'length' || field === 'width'
+                || field === 'along-facade' || field === 'curtain-max-depth';
+            const imperial = this.hass?.config?.unit_system?.length === 'mi';
+            entry[field] = isLength && imperial ? value / INCHES_PER_METER : value;
+        }
+        this._commitWindowEntries(entries);
+    };
+    private _onWindowListAction = (e: Event): void =>
+    {
+        const button = e.currentTarget as HTMLElement;
+        const action = button.dataset.windowAction;
+        const entries = this._windowEditEntries();
+        const index = Number(button.dataset.windowIndex);
+        if (action === 'add')
+        {
+            if (entries.length >= MAX_WINDOW_COUNT)
+            {
+                return;
+            }
+            let suffix = entries.length + 1;
+            while (entries.some((entry) => entry.id === `window-${suffix}`))
+            {
+                suffix++;
+            }
+            const lastAzimuth = typeof entries[entries.length - 1]?.azimuth === 'number'
+                ? entries[entries.length - 1].azimuth as number
+                : DEFAULT_WINDOW_AZIMUTH_DEG;
+            entries.push({
+                id: `window-${suffix}`,
+                label: `W${suffix}`,
+                building: 'home',
+                azimuth: (lastAzimuth + 180) % 360,
+                length: 1.2,
+                width: 0.9,
+                'along-facade': 0,
+            });
+        }
+        else if (action === 'trim' && this._windowOverflowCount() > 0)
+        {
+            this._commitWindowEntries(entries, true);
+            return;
+        }
+        else if (Number.isInteger(index) && index >= 0 && index < entries.length)
+        {
+            if (action === 'remove')
+            {
+                entries.splice(index, 1);
+            }
+            else if (action === 'up' && index > 0)
+            {
+                [entries[index - 1], entries[index]] = [entries[index], entries[index - 1]];
+            }
+            else if (action === 'down' && index < entries.length - 1)
+            {
+                [entries[index], entries[index + 1]] = [entries[index + 1], entries[index]];
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            return;
+        }
+        this._commitWindowEntries(entries);
     };
     private _onNumSliderInput = (e: Event): void =>
     {
@@ -1308,6 +1442,33 @@ export class HeliosCardEditor extends LitElement
             ? Math.round(curtainDepthM * INCHES_PER_METER)
             : Number(curtainDepthM.toFixed(2));
         const curtainDepthMax = imperialLength ? Math.floor(MAX_CURTAIN_DEPTH_M * INCHES_PER_METER) : MAX_CURTAIN_DEPTH_M;
+        const windowEntries = this._windowEditEntries();
+        const windowDisplayEntries = windowEntries.slice(0, MAX_WINDOW_COUNT);
+        const windowOverflowCount = this._windowOverflowCount();
+        const windowValidation = resolveWindowDefinitions({ ...c, windows: windowEntries });
+        const windowLengthValue = (entry: Record<string, unknown>, index: number, field: string): string =>
+        {
+            const normalized = windowValidation[index]?.definition;
+            const raw = entry[field];
+            const fallback = field === 'azimuth' ? normalized?.azimuthDeg
+                : field === 'length' ? normalized?.lengthM
+                    : field === 'width' ? normalized?.widthM
+                        : field === 'along-facade' ? normalized?.alongFacadeM
+                            : field === 'curtain-max-depth' ? normalized?.curtainMaxDepthM : undefined;
+            const value = raw ?? fallback;
+            if (value === undefined || value === null)
+            {
+                return '';
+            }
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric))
+            {
+                return String(value);
+            }
+            const dimensional = field === 'length' || field === 'width' || field === 'along-facade' || field === 'curtain-max-depth';
+            const displayed = dimensional && imperialLength ? numeric * INCHES_PER_METER : numeric;
+            return String(Number(displayed.toFixed(imperialLength && dimensional ? 1 : 2)));
+        };
 
         // Placeholders for the home lat/lon override fields: show HA's configured home (so the user sees what they'd
         // override), falling back to Amsterdam when HA hasn't set one. Hint text only; empty input means "use HA's
@@ -1453,8 +1614,8 @@ export class HeliosCardEditor extends LitElement
     t.editor.batterySignHelp, 'dropdown')}
                 </details>
 
-                <details class="advanced-section" data-section="buildings" ?open=${this._openSection === 'buildings'} @toggle=${this._onSectionToggleEvt}>
-                    <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:office-building-outline"></ha-icon>${t.editor.buildingsSection}</summary>
+                <details class="advanced-section" data-section="windows" ?open=${this._openSection === 'windows'} @toggle=${this._onSectionToggleEvt}>
+                    <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:window-open"></ha-icon>Windows</summary>
                 <label class="field">
                     <span class="label">Window Sill Height (${sillUnit})</span>
                     <input
@@ -1467,7 +1628,7 @@ export class HeliosCardEditor extends LitElement
                         @change=${this._onWindowSillHeightChange}
                     />
                 </label>
-                <div class="hint">Physical sill height from the floor to the bottom edge of the glass. Used for sun timing and indoor beam/shadow calculations; the window marker on the building is schematic. A value of 0 (default) places the physical window at floor level. Range: 0-50 m / 0-1968 in.</div>
+                <div class="hint">Shared floor height from the floor to the bottom edge of every window's glass. Used for window placement, sun timing, and indoor beam/shadow calculations. A value of 0 places the glass at floor level. Range: 0-50 m / 0-1968 in.</div>
                 <label class="field">
                     <span class="label">Maximum Sunlight Depth (${sillUnit})</span>
                     <input
@@ -1480,7 +1641,60 @@ export class HeliosCardEditor extends LitElement
                     />
                 </label>
                 <div class="hint">Maximum direct-sun distance along the floor. The shaded curtain shape is a simulation only and does not control a Home Assistant cover.</div>
-                ${this._renderToggle('window-azimuth-arrow', 'Show window azimuth arrow', 'Draw an arrow pointing outward from the home window in its azimuth direction.')}
+                <div class="field-block">
+                    <span class="label">Windows</span>
+                    <div class="hint">All windows use the shared sill height above. Azimuth selects each window's nearest exterior wall; large direction mismatches are shown as warnings.</div>
+                    ${windowOverflowCount > 0 ? html`
+                        <div class="hint">${windowOverflowCount} extra window definitions exceed the limit of ${MAX_WINDOW_COUNT} and are not rendered.</div>
+                        <button type="button" class="seg-option" data-window-action="trim" @click=${this._onWindowListAction}>Remove extra windows</button>
+                    ` : nothing}
+                    ${windowDisplayEntries.map((entry, index) => html`
+                        <div class="field-block">
+                            <strong>${String(entry.label ?? entry.id ?? `Window ${index + 1}`)}</strong>
+                            ${windowValidation[index]?.errors.length
+                                ? html`<div class="hint">${windowValidation[index].errors.join('; ')}</div>` : nothing}
+                            <label class="field">
+                                <span class="label">ID</span>
+                                <input type="text" .value=${String(entry.id ?? '')} data-window-index=${index} data-window-field="id" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Button label</span>
+                                <input type="text" .value=${String(entry.label ?? '')} data-window-index=${index} data-window-field="label" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Azimuth (°)</span>
+                                <input type="number" min="0" max="359" step="1" .value=${windowLengthValue(entry, index, 'azimuth')} data-window-index=${index} data-window-field="azimuth" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Length (${sillUnit})</span>
+                                <input type="number" min="0.1" step="0.1" .value=${windowLengthValue(entry, index, 'length')} data-window-index=${index} data-window-field="length" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Glass height (${sillUnit})</span>
+                                <input type="number" min="0.1" step="0.1" .value=${windowLengthValue(entry, index, 'width')} data-window-index=${index} data-window-field="width" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Position along facade (${sillUnit})</span>
+                                <input type="number" step="0.1" .value=${windowLengthValue(entry, index, 'along-facade')} data-window-index=${index} data-window-field="along-facade" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <label class="field">
+                                <span class="label">Maximum sunlight depth (${sillUnit})</span>
+                                <input type="number" min="0" max=${curtainDepthMax} step="0.1" .value=${windowLengthValue(entry, index, 'curtain-max-depth')} data-window-index=${index} data-window-field="curtain-max-depth" @change=${this._onWindowFieldChange} />
+                            </label>
+                            <div class="field">
+                                <button type="button" class="seg-option" data-window-action="up" data-window-index=${index} ?disabled=${index === 0} @click=${this._onWindowListAction}>Move up</button>
+                                <button type="button" class="seg-option" data-window-action="down" data-window-index=${index} ?disabled=${index === windowEntries.length - 1} @click=${this._onWindowListAction}>Move down</button>
+                                <button type="button" class="seg-option" data-window-action="remove" data-window-index=${index} @click=${this._onWindowListAction}>Remove</button>
+                            </div>
+                        </div>
+                    `)}
+                    <button type="button" class="seg-option" data-window-action="add" ?disabled=${windowEntries.length >= MAX_WINDOW_COUNT} @click=${this._onWindowListAction}>Add window (${windowEntries.length}/${MAX_WINDOW_COUNT})</button>
+                </div>
+                ${this._renderToggle('window-azimuth-arrow', 'Show window azimuth arrows', 'Draw an arrow from each window pointing outward in its resolved facade direction.')}
+                </details>
+
+                <details class="advanced-section" data-section="buildings" ?open=${this._openSection === 'buildings'} @toggle=${this._onSectionToggleEvt}>
+                    <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:office-building-outline"></ha-icon>${t.editor.buildingsSection}</summary>
                 ${this._renderSlider('display-radius', t.editor.displayRadius, MIN_DISPLAY_RADIUS_M, MAX_DISPLAY_RADIUS_M, 10, DEFAULT_DISPLAY_RADIUS_M, ' m')}
                 <div class="hint">${t.editor.displayRadiusHelp}</div>
                 ${this._renderSlider('building-count', t.editor.buildingCount, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT, 5, DEFAULT_BUILDING_COUNT)}

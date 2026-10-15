@@ -22,15 +22,8 @@ import { tintedRgba, buildingColor } from '../core/render-kit/colors';
 import { mixHex, hexByte, rgbaHex } from '../core/render-kit/hex';
 import { pointsAttr, clipPolygon, cardClipRect, pointInPolygon, type Point, type ClipRect } from '../core/render-kit/geometry';
 import { fetchOfmBuildingRings, type OfmRing } from './openfreemap';
-import {
-    centeredWindowOnFacade,
-    schematicWindowOnFacade,
-    windowPointAt,
-    DEFAULT_WINDOW_AZIMUTH_DEG,
-    evaluateWindowSunExposure,
-    calculateCurtainClosedFraction,
-    curtainOverlayCorners,
-} from './window-markers';
+import type { EvaluatedWindowGeometry } from './window-markers';
+import { renderWindow } from './window-renderer';
 import { DEG, SHADOW_FADE_DEG, MAX_SHADOW_M,
     FIXED_BUILDING_HEIGHT_M,
     MAX_BUILDING_COUNT,
@@ -979,10 +972,9 @@ export function renderBuildings(
     home:            HomeAppearance = {},
     //Degrees from north, clockwise. Without it a wall cannot know whether it faces the light.
     sunAzimuth       = 180,
-    windowSillHeightM = 0,
-    horizonAltitude  = 0,
-    curtainMaxDepthM = 1,
-    windowAzimuthArrow = false
+    windowStates:    readonly EvaluatedWindowGeometry[] = [],
+    windowAzimuthArrow = false,
+    selectedWindowId: string | null = null
 ): SceneShape[]
 {
     //Horizontal direction TOWARDS the sun, and how much sun there is to give. The fade tracks the shadows' own, so
@@ -1027,11 +1019,23 @@ export function renderBuildings(
     const nbLit     = mixHex(nb, '#000000', 0.04);
     const nbStroke  = mixHex(nb, '#000000', 0.30);
     const neighborOp = Math.max(0, Math.min(1, neighborOpacity));
-    const windowOccluders = buildings.map((building) => ({
-        footprint: building.footprint,
-        holes:     building.holes,
-        height:    building.height * growth * (building.isHome ? (home.growth ?? 1) : 1),
-    }));
+    const windowsByEdge = new Map<number, EvaluatedWindowGeometry[]>();
+    for (const window of windowStates)
+    {
+        if (!window.geometry || window.errors.length > 0)
+        {
+            continue;
+        }
+        const group = windowsByEdge.get(window.geometry.edgeIndex);
+        if (group)
+        {
+            group.push(window);
+        }
+        else
+        {
+            windowsByEdge.set(window.geometry.edgeIndex, [window]);
+        }
+    }
 
     //One face list for EVERY building, home included: the scene paints by true depth, so a neighbour nearer the
     //camera than the home occludes it exactly as it would occlude another neighbour, and a farther one still
@@ -1066,13 +1070,6 @@ export function renderBuildings(
         }
         const strokeW   = b.isHome ? '1' : '0.4';
         const roofStrokeW = b.isHome ? '1' : '0.6';
-        const homeWindow = b.isHome
-            ? centeredWindowOnFacade(fp, h, DEFAULT_WINDOW_AZIMUTH_DEG, windowSillHeightM * growth * (home.growth ?? 1))
-            : null;
-        const schematicWindow = b.isHome
-            ? schematicWindowOnFacade(fp, h, DEFAULT_WINDOW_AZIMUTH_DEG)
-            : null;
-
         //Emit each visible wall into the shared face list (sorted globally below), for every ring of the block.
         //Every vertex is projected ONCE per frame, base and roof, and the depth comes along with the pixel: the
         //wall sort key and the roof (ring, depth) read the same projections rather than running them again.
@@ -1141,125 +1138,19 @@ export function renderBuildings(
                 }
                 const wall: SceneShape = { tag: 'polygon', geom: pointsAttr(wq), fill: wallFill, stroke, strokeWidth: strokeW };
                 let windowShapes: SceneShape[] | undefined;
-                if (homeWindow && schematicWindow && ring === fp && i === homeWindow.edgeIndex)
+                const windowsOnWall = b.isHome && ring === fp ? windowsByEdge.get(i) : undefined;
+                if (windowsOnWall)
                 {
-                    const exposure = evaluateWindowSunExposure(
-                        homeWindow, windowOccluders, sunAzimuth, altitude, horizonAltitude
+                    windowShapes = windowsOnWall.flatMap((window) =>
+                        renderWindow(
+                            cam,
+                            rect,
+                            window,
+                            windowAzimuthArrow,
+                            growth * (home.growth ?? 1),
+                            window.id === selectedWindowId
+                        )
                     );
-                    const curtainClosedFraction = calculateCurtainClosedFraction(
-                        homeWindow, exposure, sunAzimuth, altitude, curtainMaxDepthM
-                    );
-                    windowShapes = exposure.cells.flatMap((cell) =>
-                    {
-                        const schematicCorners = [
-                            windowPointAt(schematicWindow, cell.u0, cell.v0),
-                            windowPointAt(schematicWindow, cell.u1, cell.v0),
-                            windowPointAt(schematicWindow, cell.u1, cell.v1),
-                            windowPointAt(schematicWindow, cell.u0, cell.v1),
-                        ];
-                        const projectedCell = schematicCorners.map(([east, north, up]) =>
-                        {
-                            const projected = cam.project3(east, north, up);
-                            return [projected.x, projected.y] as Point;
-                        });
-                        const clippedCell = clipPolygon(projectedCell, rect);
-                        if (clippedCell.length < 3)
-                        {
-                            return [];
-                        }
-                        const fill = exposure.state === 'NO_DIRECT_SUN'
-                            ? 'rgba(111, 128, 138, 0.88)'
-                            : cell.sunlit ? 'rgba(255, 198, 92, 0.96)' : 'rgba(43, 58, 70, 0.96)';
-                        return [{
-                            tag: 'polygon' as const,
-                            geom: pointsAttr(clippedCell),
-                            fill,
-                            stroke: 'none',
-                            strokeWidth: '0',
-                        }];
-                    });
-                    const curtainCorners = curtainOverlayCorners(schematicWindow, curtainClosedFraction);
-                    if (curtainCorners)
-                    {
-                        const projectedCurtain = curtainCorners.map(([east, north, up]) =>
-                        {
-                            const projected = cam.project3(east, north, up);
-                            return [projected.x, projected.y] as Point;
-                        });
-                        const clippedCurtain = clipPolygon(projectedCurtain, rect);
-                        if (clippedCurtain.length >= 3)
-                        {
-                            windowShapes.push({
-                                tag: 'polygon',
-                                geom: pointsAttr(clippedCurtain),
-                                fill: 'rgba(255, 255, 255, 0.96)',
-                                stroke: 'rgba(128, 138, 148, 0.92)',
-                                strokeWidth: '0.8',
-                            });
-                        }
-                    }
-                    const projectedFrame = schematicWindow.corners.map(([east, north, up]) =>
-                    {
-                        const projected = cam.project3(east, north, up);
-                        return [projected.x, projected.y] as Point;
-                    });
-                    const clippedFrame = clipPolygon(projectedFrame, rect);
-                    if (clippedFrame.length >= 3)
-                    {
-                        windowShapes.push({
-                            tag: 'polygon',
-                            geom: pointsAttr(clippedFrame),
-                            fill: 'none',
-                            stroke: 'rgba(228, 247, 252, 0.95)',
-                            strokeWidth: '1.2',
-                        });
-                    }
-                    if (windowAzimuthArrow)
-                    {
-                        const center = schematicWindow.corners.reduce(
-                            (sum, corner) => [sum[0] + corner[0] / 4, sum[1] + corner[1] / 4, sum[2] + corner[2] / 4],
-                            [0, 0, 0] as [number, number, number]
-                        );
-                        const azimuth = schematicWindow.azimuthDeg * DEG;
-                        const start = cam.project3(center[0], center[1], center[2]);
-                        const end = cam.project3(
-                            center[0] + Math.sin(azimuth) * 1.2,
-                            center[1] + Math.cos(azimuth) * 1.2,
-                            center[2]
-                        );
-                        let dx = end.x - start.x;
-                        let dy = end.y - start.y;
-                        let screenLength = Math.hypot(dx, dy);
-                        if (screenLength <= 0.5)
-                        {
-                            const bearing = cam.bearingDeg * DEG;
-                            const tilt = cam.tiltDeg * DEG;
-                            dx = Math.sin(azimuth) * Math.cos(bearing) + Math.cos(azimuth) * Math.sin(bearing);
-                            dy = (Math.sin(azimuth) * Math.sin(bearing) - Math.cos(azimuth) * Math.cos(bearing)) * Math.cos(tilt);
-                            screenLength = Math.hypot(dx, dy);
-                        }
-                        if (screenLength > 0.5)
-                        {
-                            const ux = dx / screenLength;
-                            const uy = dy / screenLength;
-                            const arrowLength = Math.max(26, screenLength);
-                            const endX = start.x + ux * arrowLength;
-                            const endY = start.y + uy * arrowLength;
-                            const headLength = Math.min(8, arrowLength * 0.4);
-                            const headWidth = headLength * 0.55;
-                            const headBaseX = endX - ux * headLength;
-                            const headBaseY = endY - uy * headLength;
-                            const sideX = -uy * headWidth;
-                            const sideY = ux * headWidth;
-                            windowShapes.push({
-                                tag: 'path',
-                                geom: `M${start.x.toFixed(1)},${start.y.toFixed(1)}L${endX.toFixed(1)},${endY.toFixed(1)}M${(headBaseX + sideX).toFixed(1)},${(headBaseY + sideY).toFixed(1)}L${endX.toFixed(1)},${endY.toFixed(1)}L${(headBaseX - sideX).toFixed(1)},${(headBaseY - sideY).toFixed(1)}`,
-                                fill: 'none',
-                                stroke: '#ffb84d',
-                                strokeWidth: '2',
-                            });
-                        }
-                    }
                 }
                 //Sort key = the wall's NEAREST corner (max cameraZ, larger = nearer). On a concave footprint an
                 //edge-midpoint depth mis-orders two facing walls; the nearest-point does not.
@@ -1357,5 +1248,10 @@ function simplifiedRings(b: Building): Point[][]
     const rings = [simplifyFootprint(b.footprint), ...(b.holes ?? []).map(simplifyFootprint)];
     _simplifyCache.set(b, rings);
     return rings;
+}
+
+export function windowFacadeFootprint(building: Building): Point[]
+{
+    return simplifiedRings(building)[0] ?? building.footprint;
 }
 

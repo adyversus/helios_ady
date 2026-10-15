@@ -480,7 +480,7 @@ function buildTargetSeriesUncached(
                 {
                     continue;
                 }
-                const value = host._engine.getCurtainOpenPercent(new Date(tMs));
+                const value = host._engine.getCurtainOpenPercent(new Date(tMs), host._selectedWindowId ?? undefined);
                 if (value !== null)
                 {
                     pts.push({ t: tMs, v: value });

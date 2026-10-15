@@ -27,6 +27,10 @@ export const DEFAULT_BUILDING_OPACITY          = 0.5;   //ghost surround; home s
 export const DEFAULT_BUILDING_CLUSTER_RADIUS_M = 0;     //0 = single-polygon home detection
 export const DEFAULT_WINDOW_SILL_HEIGHT_M = 0;
 export const MAX_WINDOW_SILL_HEIGHT_M = 50;
+export const DEFAULT_WINDOW_AZIMUTH_DEG = 272;
+export const DEFAULT_WINDOW_LENGTH_M = 1.2;
+export const DEFAULT_WINDOW_HEIGHT_M = 0.9;
+export const MAX_WINDOW_COUNT = 16;
 export const INCHES_PER_METER = 39.37007874015748;
 export const DEFAULT_CURTAIN_MAX_DEPTH_M = 1;
 export const MAX_CURTAIN_DEPTH_M = 50;

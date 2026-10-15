@@ -4,7 +4,7 @@ import type { Building, RawBuilding } from './buildings';
 import { getSunPosition, computePvPercent, computeIrradianceWm2 } from '../core/time/sun';
 import { getMoonPosition, getMoonPhase } from '../core/time/moon';
 import { fetchHomePointData, clearWeatherCache, type SampleHourly } from '../data/weather';
-import { fetchRawBuildings, interpretBuildings, clearBuildingsLocationCache } from './buildings';
+import { fetchRawBuildings, interpretBuildings, clearBuildingsLocationCache, windowFacadeFootprint } from './buildings';
 import { arrayTileCorners, arrayIncidence, arrayStandHeight, type ArrayLine } from './array-markers';
 import { PERSPECTIVE, NEAR_PLANE } from './projection';
 import type { Point } from '../core/render-kit/geometry';
@@ -16,10 +16,12 @@ import { sunSpherePoint, moonSpherePoint, daylightRamp, horizonSpherePoint } fro
 import { buildTimeSamples, timeSamplesEqual, nearestSampleAt, type TimeSample } from '../core/nearest-series';
 import { fetchHorizonProfile, horizonAltAt, horizonPeak, HORIZON_MIN_PEAK_DEG, type HorizonProfile } from '../data/sources/horizon';
 import {
-    calculateCurtainClosedFraction,
-    centeredWindowOnFacade,
-    DEFAULT_WINDOW_AZIMUTH_DEG,
-    evaluateWindowSunExposure,
+    evaluateWindowGeometries,
+    resolveWindowGeometries,
+    WindowEvaluationCache,
+    type EvaluatedWindowGeometry,
+    type ResolvedWindowGeometry,
+    type WindowOccluder,
 } from './window-markers';
 import {
     CAMERA_PITCH_MIN_DEG, CAMERA_PITCH_MAX_DEG, CAMERA_PITCH_REST_DEG,
@@ -42,6 +44,8 @@ import
     buildingFixedHeightM,
     windowSillHeight,
     curtainMaxDepthM,
+    resolveWindowDefinitions,
+    type WindowDefinitionEntry,
     windowAzimuthArrowEnabled,
     buildingColorToken,
     mapThemeMode,
@@ -391,59 +395,82 @@ export class HeliosEngine
         return this._buildingsData.some((b) => b.isHome && b.placeholder === true);
     }
 
-    public getCurtainOpenPercent(atDate?: Date): number | null
+    public getWindowDefinitions(): WindowDefinitionEntry[]
+    {
+        return this._getWindowGeometryCache().entries;
+    }
+
+    public setSelectedWindowId(windowId: string | null): void
+    {
+        this._renderer?.setSelectedWindowId(windowId);
+    }
+
+    public getWindowEvaluations(atDate?: Date): EvaluatedWindowGeometry[]
     {
         const selectedTime = this._selectedTime;
         const timeMs = atDate?.getTime() ?? (selectedTime
             ? selectedTime.getTime()
             : Math.floor(Date.now() / 60_000) * 60_000);
-        const at = new Date(timeMs);
-        const sun = getSunPosition(at, this.homeLat, this.homeLon);
+        const date = new Date(timeMs);
+        const sun = getSunPosition(date, this.homeLat, this.homeLon);
         const horizonAltitude = this._horizonAt(sun.azimuth);
-        const sillHeightM = windowSillHeight(this.cfg);
-        const maxDepthM = curtainMaxDepthM(this.cfg);
-        const buildings = this._buildingsData;
-        const cached = this._curtainOpenPercentMemo.get(timeMs);
-        if (cached && cached.buildings === buildings
-            && cached.sillHeightM === sillHeightM && cached.maxDepthM === maxDepthM
-            && cached.horizonAltitude === horizonAltitude)
-        {
-            return cached.openPercent;
-        }
-
-        const home = buildings?.find((building) => building.isHome);
-        const window = home
-            ? centeredWindowOnFacade(home.footprint, home.height, DEFAULT_WINDOW_AZIMUTH_DEG, sillHeightM)
-            : null;
-        let openPercent: number | null = null;
-        if (window && buildings)
-        {
-            const occluders = buildings.map((building) => ({
-                footprint: building.footprint,
-                holes:     building.holes,
-                height:    building.height,
-            }));
-            const exposure = evaluateWindowSunExposure(
-                window, occluders, sun.azimuth, sun.altitude, horizonAltitude
-            );
-            const closed = calculateCurtainClosedFraction(
-                window, exposure, sun.azimuth, sun.altitude, maxDepthM
-            );
-            openPercent = Math.round((1 - closed) * 100);
-        }
-
-        if (this._curtainOpenPercentMemo.size >= 2048)
-        {
-            this._curtainOpenPercentMemo.clear();
-        }
-        this._curtainOpenPercentMemo.set(timeMs, {
-            buildings,
-            sillHeightM,
-            maxDepthM,
+        const geometryCache = this._getWindowGeometryCache();
+        return this._windowEvaluationMemo.getOrCompute({
+            timeMs,
+            geometryRevision: geometryCache.revision,
+            sunAzimuth: sun.azimuth,
+            sunAltitude: sun.altitude,
             horizonAltitude,
-            openPercent,
-        });
-        return openPercent;
+        }, () => evaluateWindowGeometries(
+            geometryCache.resolved, geometryCache.occluders, sun.azimuth, sun.altitude, horizonAltitude
+        ));
+    }
+
+    public getCurtainOpenPercent(atDate?: Date, windowId?: string): number | null
+    {
+        const windows = this.getWindowEvaluations(atDate);
+        const window = windowId === undefined
+            ? windows.find((candidate) => candidate.geometry && candidate.evaluation)
+            : windows.find((candidate) => candidate.id === windowId);
+        return window?.evaluation?.openPercent ?? null;
+    }
+
+    private _getWindowGeometryCache(): NonNullable<typeof this._windowGeometryCache>
+    {
+        const buildings = this._buildingsData;
+        const rawWindows = this.cfg?.windows;
+        const sillHeightM = windowSillHeight(this.cfg);
+        const globalCurtainDepthM = curtainMaxDepthM(this.cfg);
+        const cached = this._windowGeometryCache;
+        if (cached && cached.buildings === buildings && cached.rawWindows === rawWindows
+            && cached.sillHeightM === sillHeightM && cached.globalCurtainDepthM === globalCurtainDepthM)
+        {
+            return cached;
+        }
+
+        const entries = resolveWindowDefinitions(this.cfg);
+        const home = buildings?.find((building) => building.isHome);
+        const footprint = home ? windowFacadeFootprint(home) : [];
+        const resolved = resolveWindowGeometries(entries, footprint, home?.height ?? 0, sillHeightM);
+        const occluders: WindowOccluder[] = (buildings ?? []).map((building) => ({
+            footprint: building.footprint,
+            holes:     building.holes,
+            height:    building.height,
+        }));
+        this._windowGeometryRevision++;
+        this._windowEvaluationMemo.clear();
+        const next = {
+            buildings,
+            rawWindows,
+            sillHeightM,
+            globalCurtainDepthM,
+            revision: this._windowGeometryRevision,
+            entries,
+            resolved,
+            occluders,
+        };
+        this._windowGeometryCache = next;
+        return next;
     }
 
     //Current camera pose (bearing/pitch in degrees), or null before the renderer exists. Used by the editor's
@@ -603,13 +630,18 @@ export class HeliosEngine
     //for. _buildingsData is the INTERPRETED Building[] the renderer draws, recomputed in memory on every
     //option change with no re-fetch.
     private _buildingsData:   Building[] | null    = null;
-    private _curtainOpenPercentMemo = new Map<number, {
+    private _windowGeometryCache?: {
         buildings: Building[] | null;
+        rawWindows: unknown;
         sillHeightM: number;
-        maxDepthM: number;
-        horizonAltitude: number;
-        openPercent: number | null;
-    }>();
+        globalCurtainDepthM: number;
+        revision: number;
+        entries: WindowDefinitionEntry[];
+        resolved: ResolvedWindowGeometry[];
+        occluders: WindowOccluder[];
+    };
+    private _windowGeometryRevision = 0;
+    private _windowEvaluationMemo = new WindowEvaluationCache(8);
     private _buildingsRaw:    RawBuilding[] | null = null;
     //True once a fetch for the current location has settled (data, empty, or outage). Before that, the scene shows
     //no buildings at all rather than the fallback house: the fallback is for a genuine "no data" outcome, not the
@@ -719,8 +751,6 @@ export class HeliosEngine
             shadowOpacity: this._shadowOpacity(),
             degraded:      degradedRender(this.cfg),
         });
-        this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
-        this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
         this._renderer.setWindowAzimuthArrow(windowAzimuthArrowEnabled(this.cfg));
         this._renderer.setCameraBearing(this._initialBearing());
         this._renderer.setCameraPitch(this._initialPitch());
@@ -1501,6 +1531,7 @@ export class HeliosEngine
         }
         const buildings = this._buildingsData ?? [];
         this._renderer.setBuildings(buildings);
+        this._renderer.setWindowStates(this.getWindowEvaluations());
         //Play the prism rise once, the first time footprints land. Skipped in edit/preview mode (the renderer
         //defaults to full height) so the editor's per-keystroke card rebuild doesn't replay it.
         if (buildings.length && !this._grown)
@@ -1527,6 +1558,7 @@ export class HeliosEngine
         const t   = this._selectedTime ?? new Date();
         const sun = getSunPosition(t, this.homeLat, this.homeLon);
         const { altitude, azimuth } = sun;
+        this._renderer.setWindowStates(this.getWindowEvaluations(t));
 
         const azimuthDelta = ((azimuth - this._lastAtmosphereAzimuth + 540) % 360) - 180;
         if (Math.abs(altitude - this._lastAtmosphereAlt) < 1.5 && Math.abs(azimuthDelta) < 1.5)
@@ -2653,8 +2685,6 @@ export class HeliosEngine
             return;
         }
 
-        this._renderer.setWindowSillHeight(windowSillHeight(this.cfg));
-        this._renderer.setCurtainMaxDepth(curtainMaxDepthM(this.cfg));
         this._renderer.setWindowAzimuthArrow(this.getWindowAzimuthArrowVisible());
 
         //Scene zoom: the renderer rescales its camera; the arc caches baked the old px-per-metre into their
@@ -2671,6 +2701,7 @@ export class HeliosEngine
         //re-interpret (cheap) rather than diffing every option key; _applyBuildings is pure and idempotent.
         const nextRadius = this._buildingRadiusMeters();
         this._ensureBuildings();
+        this._renderer.setWindowStates(this.getWindowEvaluations());
         if (nextRadius !== prevRadius)
         {
             //Radius also drives the shadow fade band: force a refresh so the whole disc resizes in step.

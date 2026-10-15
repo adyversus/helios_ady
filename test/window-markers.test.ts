@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMaxDepthM, windowAzimuthArrowEnabled, windowSillHeight } from '../src/core/config/helios-config';
+import { curtainMaxDepthM, windowAzimuthArrowEnabled, resolveWindowDefinitions, windowSillHeight } from '../src/core/config/helios-config';
 import {
     centeredWindowOnFacade,
+    resolveWindowGeometries,
+    evaluateWindowGeometries,
     schematicWindowOnFacade,
     calculateCurtainClosedFraction,
     curtainOverlayCorners,
     evaluateWindowSunExposure,
+    WindowEvaluationCache,
     DEFAULT_WINDOW_AZIMUTH_DEG,
 } from '../src/scene/window-markers';
 
@@ -75,7 +78,9 @@ describe('centeredWindowOnFacade', () =>
         expect(centeredWindowOnFacade([[0, 0], [1, 0]], 3)).toBeNull();
         expect(centeredWindowOnFacade([[0, 0], [1, 0], [0, 1]], 0)).toBeNull();
         expect(centeredWindowOnFacade([[0, 0], [1, 0], [0, 1]], Number.NaN)).toBeNull();
-        expect(centeredWindowOnFacade([[0, 0], [4, 0], [4, 4], [0, 4]], 3, 225)).toBeNull();
+        const nearest = centeredWindowOnFacade([[0, 0], [4, 0], [4, 4], [0, 4]], 3, 225);
+        expect(nearest?.azimuthDeg).toBe(180);
+        expect(nearest?.azimuthDifferenceDeg).toBe(45);
     });
 });
 
@@ -101,6 +106,146 @@ describe('curtainMaxDepthM config', () =>
         expect(curtainMaxDepthM({ 'curtain-max-depth': -1 })).toBe(0);
         expect(curtainMaxDepthM({ 'curtain-max-depth': 60 })).toBe(50);
         expect(curtainMaxDepthM({ 'curtain-max-depth': 'invalid' })).toBe(1);
+    });
+});
+
+describe('windowDefinitions config', () =>
+{
+    it('adapts legacy config, preserves an explicit empty list, and reports invalid entries', () =>
+    {
+        const [legacy] = resolveWindowDefinitions(undefined);
+        expect(legacy.definition).toMatchObject({
+            id: 'legacy-window',
+            building: 'home',
+            azimuthDeg: DEFAULT_WINDOW_AZIMUTH_DEG,
+            lengthM: 1.2,
+            widthM: 0.9,
+            alongFacadeM: 0,
+            curtainMaxDepthM: 1,
+        });
+        expect(resolveWindowDefinitions({ windows: [] })).toEqual([]);
+
+        const entries = resolveWindowDefinitions({
+            windows: [
+                { id: 'south', label: 'LR', building: 'home', azimuth: 540, length: 1.5 },
+                { id: 'bad', building: 'home', azimuth: 'south', length: -1 },
+            ],
+        });
+        expect(entries[0].definition).toMatchObject({ id: 'south', label: 'LR', azimuthDeg: 180, lengthM: 1.5 });
+        expect(entries[0].errors).toEqual([]);
+        expect(entries[1].definition).toBeNull();
+        expect(entries[1].errors.length).toBeGreaterThan(0);
+
+        const tooMany = resolveWindowDefinitions({
+            windows: Array.from({ length: 1000 }, (_, index) => ({
+                id: `window-${index + 1}`, building: 'home', azimuth: 180,
+            })),
+        });
+        expect(tooMany).toHaveLength(17);
+        expect(tooMany[15].definition).not.toBeNull();
+        expect(tooMany[16].definition).toBeNull();
+        expect(tooMany[16].label).toBe('984 extra windows');
+        expect(tooMany[16].errors.join(' ')).toContain('supported limit of 16');
+    });
+});
+
+describe('resolveWindowGeometries', () =>
+{
+    const footprint: [number, number][] = [[-4, -4], [4, -4], [4, 4], [-4, 4]];
+
+    it('resolves opposite facades independently at the shared sill height', () =>
+    {
+        const entries = resolveWindowDefinitions({
+            windows: [
+                { id: 'south', building: 'home', azimuth: 180 },
+                { id: 'north', building: 'home', azimuth: 0 },
+            ],
+        });
+        const resolved = resolveWindowGeometries(entries, footprint, 6, 0.8);
+
+        expect(resolved.map((entry) => entry.geometry?.edgeIndex)).toEqual([0, 2]);
+        expect(resolved.every((entry) => entry.errors.length === 0)).toBe(true);
+        expect(resolved.map((entry) => entry.geometry?.corners[0][2])).toEqual([0.8, 0.8]);
+    });
+
+    it('keeps the displayed pane vertically centered independently of the physical sill', () =>
+    {
+        const entries = resolveWindowDefinitions({
+            windows: [{ id: 'living-room', building: 'home', azimuth: 180, width: 0.9 }],
+        });
+        const [resolved] = resolveWindowGeometries(entries, footprint, 6, 1.2);
+
+        expect(resolved.geometry?.corners[0][2]).toBeCloseTo(1.2);
+        expect(resolved.displayGeometry?.corners[0][2]).toBeCloseTo(2.55);
+        expect(resolved.displayGeometry?.corners[2][2]).toBeCloseTo(3.45);
+    });
+
+    it('allows touching windows and gaps but rejects actual overlap on one facade', () =>
+    {
+        const makeEntries = (left: number, right: number) => resolveWindowDefinitions({
+            windows: [
+                { id: 'left', building: 'home', azimuth: 180, length: 1.2, 'along-facade': left },
+                { id: 'right', building: 'home', azimuth: 180, length: 1.2, 'along-facade': right },
+            ],
+        });
+        const touching = resolveWindowGeometries(makeEntries(-0.6, 0.6), footprint, 6, 0.8);
+        const gap = resolveWindowGeometries(makeEntries(-1, 1), footprint, 6, 0.8);
+        const overlap = resolveWindowGeometries(makeEntries(0, 0.5), footprint, 6, 0.8);
+
+        expect(touching.every((entry) => entry.geometry && entry.errors.length === 0)).toBe(true);
+        expect(gap.every((entry) => entry.geometry && entry.errors.length === 0)).toBe(true);
+        expect(overlap.every((entry) => entry.geometry === null && entry.errors.length > 0)).toBe(true);
+    });
+});
+
+describe('evaluateWindowGeometries', () =>
+{
+    it('returns independent exposure and curtain telemetry for opposite-facing windows', () =>
+    {
+        const entries = resolveWindowDefinitions({
+            windows: [
+                { id: 'south', building: 'home', azimuth: 180 },
+                { id: 'north', building: 'home', azimuth: 0 },
+            ],
+        });
+        const geometry = resolveWindowGeometries(
+            entries, [[-4, -4], [4, -4], [4, 4], [-4, 4]], 6, 0.8
+        );
+        const evaluated = evaluateWindowGeometries(geometry, [], 180, 40, 0);
+
+        expect(evaluated.map((entry) => entry.evaluation?.exposure?.state)).toEqual(['SUNLIT', 'NO_DIRECT_SUN']);
+        expect(evaluated[0].evaluation?.openPercent).toBeLessThan(100);
+        expect(evaluated[1].evaluation?.openPercent).toBe(100);
+    });
+});
+
+describe('WindowEvaluationCache', () =>
+{
+    it('reuses matching evaluations, invalidates changed sun inputs, and stays bounded', () =>
+    {
+        const cache = new WindowEvaluationCache(2);
+        let calculations = 0;
+        const calculate = () =>
+        {
+            calculations++;
+            return [];
+        };
+        const key = {
+            timeMs: 1,
+            geometryRevision: 1,
+            sunAzimuth: 180,
+            sunAltitude: 40,
+            horizonAltitude: 0,
+        };
+
+        const first = cache.getOrCompute(key, calculate);
+        expect(cache.getOrCompute(key, calculate)).toBe(first);
+        expect(calculations).toBe(1);
+        cache.getOrCompute({ ...key, sunAltitude: 39 }, calculate);
+        cache.getOrCompute({ ...key, timeMs: 2 }, calculate);
+
+        expect(calculations).toBe(3);
+        expect(cache.size).toBe(2);
     });
 });
 
@@ -139,6 +284,19 @@ describe('evaluateWindowSunExposure', () =>
         expect(partiallyShaded.state).toBe('PARTIALLY_SHADED');
         expect(partiallyShaded.sunlitFraction).toBeGreaterThan(0);
         expect(partiallyShaded.sunlitFraction).toBeLessThan(1);
+    });
+
+    it('ignores an overlapping footprint that contains the window sample origin', () =>
+    {
+        const overlappingBuilding = {
+            footprint: [[-6, -6], [6, -6], [6, 6], [-6, 6]] as [number, number][],
+            height: 6,
+        };
+
+        const exposure = evaluateWindowSunExposure(window, [overlappingBuilding], 270, 40);
+
+        expect(exposure.state).toBe('SUNLIT');
+        expect(exposure.sunlitFraction).toBe(1);
     });
 });
 

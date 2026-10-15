@@ -10,6 +10,7 @@ import {
     DEFAULT_BUILDING_COUNT, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT,
     FIXED_BUILDING_HEIGHT_M, MIN_BUILDING_HEIGHT_M, MAX_BUILDING_HEIGHT_M,
     DEFAULT_WINDOW_SILL_HEIGHT_M, MAX_WINDOW_SILL_HEIGHT_M,
+    DEFAULT_WINDOW_AZIMUTH_DEG, DEFAULT_WINDOW_LENGTH_M, DEFAULT_WINDOW_HEIGHT_M, MAX_WINDOW_COUNT,
     DEFAULT_CURTAIN_MAX_DEPTH_M, MAX_CURTAIN_DEPTH_M,
     DEFAULT_NO_UI_DELAY_S, MIN_NO_UI_DELAY_S, MAX_NO_UI_DELAY_S,
     SCENE_ZOOM_LEVELS, DEFAULT_SCENE_ZOOM,
@@ -29,6 +30,7 @@ export {
     DEFAULT_BUILDING_COUNT, MIN_BUILDING_COUNT, MAX_BUILDING_COUNT,
     FIXED_BUILDING_HEIGHT_M, MIN_BUILDING_HEIGHT_M, MAX_BUILDING_HEIGHT_M,
     DEFAULT_WINDOW_SILL_HEIGHT_M, MAX_WINDOW_SILL_HEIGHT_M,
+    MAX_WINDOW_COUNT,
     DEFAULT_CURTAIN_MAX_DEPTH_M, MAX_CURTAIN_DEPTH_M,
     DEFAULT_NO_UI_DELAY_S, MIN_NO_UI_DELAY_S, MAX_NO_UI_DELAY_S,
 } from './constants';
@@ -76,6 +78,8 @@ export interface HeliosConfig
     'curtain-max-depth'?:      unknown;
     //Show an arrow pointing outward from the home window along its azimuth. Defaults to false.
     'window-azimuth-arrow'?:   unknown;
+    //Optional list of individually configured home windows. Absent preserves the legacy implicit window.
+    windows?:                  unknown;
     //Cast-shadow master toggle. Default true.
     'shadows-enabled'?:        unknown;
     //Opacity 0..1 of the cast ground shadow layer. Default 0.32.
@@ -653,4 +657,192 @@ export function curtainMaxDepthM(config: HeliosConfig | undefined): number
 export function windowAzimuthArrowEnabled(config: HeliosConfig | undefined): boolean
 {
     return config?.['window-azimuth-arrow'] === true;
+}
+
+
+export interface WindowDefinition
+{
+    id:                 string;
+    label:              string;
+    building:           'home';
+    azimuthDeg:         number;
+    lengthM:            number;
+    widthM:             number;
+    alongFacadeM:       number;
+    curtainMaxDepthM:   number;
+}
+
+export interface WindowDefinitionEntry
+{
+    id:         string;
+    label:      string;
+    definition: WindowDefinition | null;
+    errors:     string[];
+}
+
+function configNumber(value: unknown): number | null
+{
+    if (typeof value === 'number')
+    {
+        return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string' && value.trim() !== '')
+    {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+function readableWindowLabel(id: string): string
+{
+    return id.split(/[-_]+/).filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Window';
+}
+
+//Resolve raw YAML into typed definitions. Invalid entries remain represented for the editor's diagnostics and
+//disabled per-window button; geometry-dependent fit/facade checks belong to the scene calculation module.
+export function resolveWindowDefinitions(config: HeliosConfig | undefined): WindowDefinitionEntry[]
+{
+    const curtainDefault = curtainMaxDepthM(config);
+    const raw = config?.windows;
+    if (raw === undefined)
+    {
+        const id = 'legacy-window';
+        return [{
+            id,
+            label: 'Window',
+            definition: {
+                id,
+                label: 'Window',
+                building: 'home',
+                azimuthDeg: DEFAULT_WINDOW_AZIMUTH_DEG,
+                lengthM: DEFAULT_WINDOW_LENGTH_M,
+                widthM: DEFAULT_WINDOW_HEIGHT_M,
+                alongFacadeM: 0,
+                curtainMaxDepthM: curtainDefault,
+            },
+            errors: [],
+        }];
+    }
+    if (!Array.isArray(raw))
+    {
+        return [{ id: 'windows', label: 'Windows', definition: null, errors: ['windows must be a list'] }];
+    }
+
+    const entries = raw.slice(0, MAX_WINDOW_COUNT).map((value, index): WindowDefinitionEntry =>
+    {
+        const source = value && typeof value === 'object' && !Array.isArray(value)
+            ? value as Record<string, unknown>
+            : {};
+        const rawId = typeof source.id === 'string' ? source.id.trim() : '';
+        const id = rawId || `window-${index + 1}`;
+        const label = typeof source.label === 'string' && source.label.trim() !== ''
+            ? source.label.trim() : readableWindowLabel(id);
+        const errors: string[] = [];
+        if (index >= MAX_WINDOW_COUNT)
+        {
+            errors.push(`maximum supported window count is ${MAX_WINDOW_COUNT}`);
+        }
+        if (!value || typeof value !== 'object' || Array.isArray(value))
+        {
+            errors.push('window definition must be an object');
+        }
+        if (!rawId)
+        {
+            errors.push('id is required');
+        }
+        if (source.building !== 'home')
+        {
+            errors.push('building must be home in this version');
+        }
+
+        const azimuth = configNumber(source.azimuth);
+        const length = source.length === undefined ? DEFAULT_WINDOW_LENGTH_M : configNumber(source.length);
+        const width = source.width === undefined ? DEFAULT_WINDOW_HEIGHT_M : configNumber(source.width);
+        const alongFacade = source['along-facade'] === undefined ? 0 : configNumber(source['along-facade']);
+        const maxDepth = source['curtain-max-depth'] === undefined
+            ? curtainDefault : configNumber(source['curtain-max-depth']);
+        if (azimuth === null)
+        {
+            errors.push('azimuth must be a finite number');
+        }
+        if (length === null || length <= 0)
+        {
+            errors.push('length must be greater than zero');
+        }
+        if (width === null || width <= 0)
+        {
+            errors.push('width must be greater than zero');
+        }
+        if (alongFacade === null)
+        {
+            errors.push('along-facade must be a finite number');
+        }
+        if (maxDepth === null || maxDepth < 0 || maxDepth > MAX_CURTAIN_DEPTH_M)
+        {
+            errors.push(`curtain-max-depth must be between 0 and ${MAX_CURTAIN_DEPTH_M} metres`);
+        }
+        if (errors.length > 0)
+        {
+            return { id, label, definition: null, errors };
+        }
+
+        return {
+            id,
+            label,
+            definition: {
+                id,
+                label,
+                building: 'home',
+                azimuthDeg: ((azimuth! % 360) + 360) % 360,
+                lengthM: length!,
+                widthM: width!,
+                alongFacadeM: alongFacade!,
+                curtainMaxDepthM: maxDepth!,
+            },
+            errors,
+        };
+    });
+
+    const ids = new Map<string, WindowDefinitionEntry[]>();
+    for (const entry of entries)
+    {
+        const group = ids.get(entry.id);
+        if (group)
+        {
+            group.push(entry);
+        }
+        else
+        {
+            ids.set(entry.id, [entry]);
+        }
+    }
+    for (const group of ids.values())
+    {
+        if (group.length > 1)
+        {
+            for (const entry of group)
+            {
+                entry.definition = null;
+                entry.errors.push('id must be unique');
+            }
+        }
+    }
+    if (raw.length > MAX_WINDOW_COUNT)
+    {
+        let overflowId = 'window-limit-overflow';
+        while (ids.has(overflowId))
+        {
+            overflowId += '-extra';
+        }
+        const excess = raw.length - MAX_WINDOW_COUNT;
+        entries.push({
+            id: overflowId,
+            label: `${excess} extra window${excess === 1 ? '' : 's'}`,
+            definition: null,
+            errors: [`${excess} additional window definitions exceed the supported limit of ${MAX_WINDOW_COUNT}; only the first ${MAX_WINDOW_COUNT} are considered`],
+        });
+    }
+    return entries;
 }

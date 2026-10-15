@@ -1,12 +1,43 @@
 import type { Point } from '../core/render-kit/geometry';
-import { DEFAULT_WINDOW_SILL_HEIGHT_M, DEG, MAX_DISPLAY_RADIUS_M } from '../core/config/constants';
+import {
+    DEFAULT_WINDOW_AZIMUTH_DEG, DEFAULT_WINDOW_SILL_HEIGHT_M, DEFAULT_WINDOW_LENGTH_M,
+    DEFAULT_WINDOW_HEIGHT_M, DEG, MAX_DISPLAY_RADIUS_M,
+} from '../core/config/constants';
 import { pointInPolygon } from '../core/render-kit/geometry';
+import type { WindowDefinitionEntry } from '../core/config/helios-config';
+
+export { DEFAULT_WINDOW_AZIMUTH_DEG } from '../core/config/constants';
+export { DEFAULT_WINDOW_LENGTH_M, DEFAULT_WINDOW_HEIGHT_M };
 
 export interface CenteredWindow
 {
-    edgeIndex: number;
-    azimuthDeg: number;
-    corners:   [number, number, number][];
+    edgeIndex:            number;
+    azimuthDeg:           number;
+    configuredAzimuthDeg: number;
+    azimuthDifferenceDeg: number;
+    edgeLengthM:          number;
+    alongFacadeM:         number;
+    arrowDirection:       Point;
+    corners:              [number, number, number][];
+}
+
+export interface ResolvedWindowGeometry extends WindowDefinitionEntry
+{
+    geometry:        CenteredWindow | null;
+    displayGeometry: CenteredWindow | null;
+    warnings:        string[];
+}
+
+export interface WindowEvaluation
+{
+    exposure:                WindowSunExposure;
+    curtainClosedFraction:   number;
+    openPercent:             number;
+}
+
+export interface EvaluatedWindowGeometry extends ResolvedWindowGeometry
+{
+    evaluation: WindowEvaluation | null;
 }
 
 export type WindowSunState = 'NO_DIRECT_SUN' | 'SUNLIT' | 'PARTIALLY_SHADED' | 'FULLY_SHADED';
@@ -35,23 +66,29 @@ export interface WindowOccluder
     height:    number;
 }
 
-export const DEFAULT_WINDOW_LENGTH_M = 1.2;
-export const DEFAULT_WINDOW_HEIGHT_M = 0.9;
-export const DEFAULT_WINDOW_AZIMUTH_DEG = 272;
 export const CURTAIN_COLOR = '#607d8b';
-const FACADE_AZIMUTH_TOLERANCE_DEG = 30;
 const WALL_OFFSET_M = 0.025;
 
 export function centeredWindowOnFacade(
-    footprint: Point[], buildingHeight: number, azimuthDeg = DEFAULT_WINDOW_AZIMUTH_DEG, sillHeightM = DEFAULT_WINDOW_SILL_HEIGHT_M
+    footprint: Point[],
+    buildingHeight: number,
+    azimuthDeg = DEFAULT_WINDOW_AZIMUTH_DEG,
+    sillHeightM = DEFAULT_WINDOW_SILL_HEIGHT_M,
+    lengthM?: number,
+    heightM?: number,
+    alongFacadeM = 0
 ): CenteredWindow | null
 {
     if (footprint.length < 3 || !Number.isFinite(buildingHeight) || buildingHeight <= 0
-        || !Number.isFinite(azimuthDeg) || !Number.isFinite(sillHeightM) || sillHeightM < 0)
+        || !Number.isFinite(azimuthDeg) || !Number.isFinite(sillHeightM) || sillHeightM < 0
+        || (lengthM !== undefined && (!Number.isFinite(lengthM) || lengthM <= 0))
+        || (heightM !== undefined && (!Number.isFinite(heightM) || heightM <= 0))
+        || !Number.isFinite(alongFacadeM))
     {
         return null;
     }
 
+    const configuredAzimuthDeg = ((azimuthDeg % 360) + 360) % 360;
     let edgeIndex = -1;
     let edgeLength = 0;
     let smallestAzimuthDifference = Infinity;
@@ -68,7 +105,7 @@ export function centeredWindowOnFacade(
         const outwardX = (end[1] - start[1]) / length;
         const outwardY = -(end[0] - start[0]) / length;
         const outwardAzimuth = (Math.atan2(outwardX, outwardY) / DEG + 360) % 360;
-        const delta = ((outwardAzimuth - azimuthDeg + 540) % 360) - 180;
+        const delta = ((outwardAzimuth - configuredAzimuthDeg + 540) % 360) - 180;
         const azimuthDifference = Math.abs(delta);
         if (azimuthDifference < smallestAzimuthDifference)
         {
@@ -77,7 +114,7 @@ export function centeredWindowOnFacade(
             smallestAzimuthDifference = azimuthDifference;
         }
     }
-    if (edgeIndex < 0 || edgeLength <= 0 || smallestAzimuthDifference > FACADE_AZIMUTH_TOLERANCE_DEG)
+    if (edgeIndex < 0 || edgeLength <= 0)
     {
         return null;
     }
@@ -89,15 +126,16 @@ export function centeredWindowOnFacade(
     // Footprints are counter-clockwise, so the right-hand normal points outside the building.
     const outwardX = tangentY;
     const outwardY = -tangentX;
-    const length = Math.min(DEFAULT_WINDOW_LENGTH_M, edgeLength * 0.6);
-    const height = Math.min(DEFAULT_WINDOW_HEIGHT_M, buildingHeight);
+    const length = lengthM ?? Math.min(DEFAULT_WINDOW_LENGTH_M, edgeLength * 0.6);
+    const height = heightM ?? Math.min(DEFAULT_WINDOW_HEIGHT_M, buildingHeight);
     const bottom = sillHeightM;
-    if (bottom + height > buildingHeight)
+    if (length > edgeLength || Math.abs(alongFacadeM) + length / 2 > edgeLength / 2
+        || bottom + height > buildingHeight)
     {
         return null;
     }
-    const centerX = (start[0] + end[0]) / 2 + outwardX * WALL_OFFSET_M;
-    const centerY = (start[1] + end[1]) / 2 + outwardY * WALL_OFFSET_M;
+    const centerX = (start[0] + end[0]) / 2 + tangentX * alongFacadeM + outwardX * WALL_OFFSET_M;
+    const centerY = (start[1] + end[1]) / 2 + tangentY * alongFacadeM + outwardY * WALL_OFFSET_M;
     const halfLength = length / 2;
 
     const leftX = centerX - tangentX * halfLength;
@@ -108,6 +146,11 @@ export function centeredWindowOnFacade(
     return {
         edgeIndex,
         azimuthDeg: (Math.atan2(outwardX, outwardY) / DEG + 360) % 360,
+        configuredAzimuthDeg,
+        azimuthDifferenceDeg: smallestAzimuthDifference,
+        edgeLengthM: edgeLength,
+        alongFacadeM,
+        arrowDirection: [outwardX, outwardY],
         corners: [
             [leftX, leftY, bottom],
             [rightX, rightY, bottom],
@@ -125,9 +168,185 @@ export function schematicWindowOnFacade(
     return centeredWindowOnFacade(footprint, buildingHeight, azimuthDeg, (buildingHeight - height) / 2);
 }
 
+//Resolve every typed definition through the same facade/placement path. Geometry failures stay associated with
+//their ID for diagnostics; overlap invalidates both windows rather than letting paint order hide one.
+export function resolveWindowGeometries(
+    entries: readonly WindowDefinitionEntry[], footprint: Point[], buildingHeight: number, sillHeightM: number
+): ResolvedWindowGeometry[]
+{
+    const resolved = entries.map((entry): ResolvedWindowGeometry =>
+    {
+        const errors = [...entry.errors];
+        const warnings: string[] = [];
+        const definition = entry.definition;
+        if (!definition)
+        {
+            return { ...entry, errors, geometry: null, displayGeometry: null, warnings };
+        }
+        const geometry = centeredWindowOnFacade(
+            footprint,
+            buildingHeight,
+            definition.azimuthDeg,
+            sillHeightM,
+            definition.lengthM,
+            definition.widthM,
+            definition.alongFacadeM
+        );
+        if (!geometry)
+        {
+            errors.push('window does not fit on a usable exterior facade');
+        }
+        else if (geometry.azimuthDifferenceDeg > FACADE_WARNING_DEG)
+        {
+            warnings.push(`requested azimuth differs from facade by ${Math.round(geometry.azimuthDifferenceDeg)} degrees`);
+        }
+        const displayGeometry = geometry
+            ? centeredWindowOnFacade(
+                footprint,
+                buildingHeight,
+                definition.azimuthDeg,
+                (buildingHeight - definition.widthM) / 2,
+                definition.lengthM,
+                definition.widthM,
+                definition.alongFacadeM
+            )
+            : null;
+        return { ...entry, errors, geometry, displayGeometry, warnings };
+    });
+
+    for (let i = 0; i < resolved.length; i++)
+    {
+        const first = resolved[i];
+        const firstGeometry = first.geometry;
+        if (!firstGeometry || !first.definition)
+        {
+            continue;
+        }
+        for (let j = i + 1; j < resolved.length; j++)
+        {
+            const second = resolved[j];
+            if (!second.geometry || !second.definition || firstGeometry.edgeIndex !== second.geometry.edgeIndex)
+            {
+                continue;
+            }
+            const firstStart = first.definition.alongFacadeM - first.definition.lengthM / 2;
+            const firstEnd = first.definition.alongFacadeM + first.definition.lengthM / 2;
+            const secondStart = second.definition.alongFacadeM - second.definition.lengthM / 2;
+            const secondEnd = second.definition.alongFacadeM + second.definition.lengthM / 2;
+            if (Math.min(firstEnd, secondEnd) - Math.max(firstStart, secondStart) > 1e-6)
+            {
+                first.geometry = null;
+                first.displayGeometry = null;
+                second.geometry = null;
+                second.displayGeometry = null;
+                first.errors.push(`overlaps window ${second.id} on the same facade`);
+                second.errors.push(`overlaps window ${first.id} on the same facade`);
+            }
+        }
+    }
+    return resolved;
+}
+
+//Canonical time-dependent calculation. Scene rendering and UI read this exact result rather than re-running
+//exposure sampling or deriving a second curtain percentage.
+export function evaluateWindowGeometries(
+    geometries: readonly ResolvedWindowGeometry[],
+    occluders: readonly WindowOccluder[],
+    sunAzimuthDeg: number,
+    sunAltitudeDeg: number,
+    horizonAltitudeDeg = 0
+): EvaluatedWindowGeometry[]
+{
+    return geometries.map((entry): EvaluatedWindowGeometry =>
+    {
+        const { geometry, definition } = entry;
+        if (!geometry || !definition)
+        {
+            return { ...entry, evaluation: null };
+        }
+        const exposure = evaluateWindowSunExposure(
+            geometry, occluders, sunAzimuthDeg, sunAltitudeDeg, horizonAltitudeDeg
+        );
+        const curtainClosedFraction = calculateCurtainClosedFraction(
+            geometry, exposure, sunAzimuthDeg, sunAltitudeDeg, definition.curtainMaxDepthM
+        );
+        return {
+            ...entry,
+            evaluation: {
+                exposure,
+                curtainClosedFraction,
+                openPercent: Math.round((1 - curtainClosedFraction) * 100),
+            },
+        };
+    });
+}
+
+export interface WindowEvaluationCacheKey
+{
+    timeMs:           number;
+    geometryRevision: number;
+    sunAzimuth:       number;
+    sunAltitude:      number;
+    horizonAltitude:  number;
+}
+
+export class WindowEvaluationCache
+{
+    private readonly _entries = new Map<number, {
+        key: WindowEvaluationCacheKey;
+        value: EvaluatedWindowGeometry[];
+    }>();
+    private readonly _capacity: number;
+
+    constructor(capacity = 256)
+    {
+        this._capacity = Number.isFinite(capacity) ? Math.max(1, Math.floor(capacity)) : 256;
+    }
+
+    public get size(): number
+    {
+        return this._entries.size;
+    }
+
+    public clear(): void
+    {
+        this._entries.clear();
+    }
+
+    public getOrCompute(
+        key: WindowEvaluationCacheKey, calculate: () => EvaluatedWindowGeometry[]
+    ): EvaluatedWindowGeometry[]
+    {
+        const cached = this._entries.get(key.timeMs);
+        if (cached && cached.key.geometryRevision === key.geometryRevision
+            && cached.key.sunAzimuth === key.sunAzimuth && cached.key.sunAltitude === key.sunAltitude
+            && cached.key.horizonAltitude === key.horizonAltitude)
+        {
+            this._entries.delete(key.timeMs);
+            this._entries.set(key.timeMs, cached);
+            return cached.value;
+        }
+
+        this._entries.delete(key.timeMs);
+        while (this._entries.size >= this._capacity)
+        {
+            const oldest = this._entries.keys().next().value;
+            if (oldest === undefined)
+            {
+                break;
+            }
+            this._entries.delete(oldest);
+        }
+        const value = calculate();
+        this._entries.set(key.timeMs, { key: { ...key }, value });
+        return value;
+    }
+}
+
 const WINDOW_SAMPLE_COLUMNS = 5;
 const WINDOW_SAMPLE_ROWS = 3;
 const WINDOW_RAY_MAX_M = MAX_DISPLAY_RADIUS_M * 2 + 10;
+const FACADE_WARNING_DEG = 30;
 
 export function evaluateWindowSunExposure(
     window: CenteredWindow,
@@ -269,9 +488,15 @@ function sunRayBlocked(
     const maxDistance = Math.min(WINDOW_RAY_MAX_M, (MAX_DISPLAY_RADIUS_M * 2 + 10));
     for (const building of occluders)
     {
+        //Overlapping map footprints can cover a window attached to a different host. Such a polygon contains the
+        //ray's source point, so it is not an external blocker for sunlight entering that window.
+        if (building.footprint.length < 3 || pointInsideBuilding(origin[0], origin[1], building))
+        {
+            continue;
+        }
         const topDistance = (building.height - origin[2]) / direction[2];
         const endDistance = Math.min(maxDistance, topDistance);
-        if (endDistance <= 0 || building.footprint.length < 3)
+        if (endDistance <= 0)
         {
             continue;
         }

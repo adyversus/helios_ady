@@ -656,7 +656,7 @@ export function buildDayProfile(host: PeriodHost, target: ChartTarget, dayMs: nu
         for (let slot = 0; slot < slots; slot++)
         {
             const at = new Date(dayStartMs + (slot + 0.5) * slotMs);
-            const openPercent = engine.getCurtainOpenPercent(at);
+            const openPercent = engine.getCurtainOpenPercent(at, host._selectedWindowId ?? undefined);
             if (openPercent !== null)
             {
                 values[slot] = openPercent / 100;
