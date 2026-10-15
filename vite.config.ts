@@ -7,7 +7,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
  * Build configuration for HACS distribution.
  *
  * The output filename MUST match the GitHub repository name
- * (lowercased) for HACS to find it: repo "Helios" → "helios.js".
+ * (lowercased) for HACS to find it: repo "Helios_ady" → "helios_ady.js".
  * See https://hacs.xyz/docs/publish/plugin/#requirements
  *
  * The bundle is a single ES module dropped into `dist/`. HACS
@@ -33,7 +33,7 @@ export default defineConfig({
         {
             entry:    'src/helios-card.ts',
             formats:  ['es'],
-            fileName: () => 'helios.js'
+            fileName: () => 'helios_ady.js'
         },
         rollupOptions:
         {
@@ -44,7 +44,7 @@ export default defineConfig({
             //per-format decoders (pako, zstd, lerc, jpeg, lzw, ...),
             //which would normally land in separate chunks.
             //inlineDynamicImports hoists every dynamic import into
-            //the main bundle so HACS sees a single helios.js
+            //the main bundle so HACS sees a single helios_ady.js
             //artefact. The Vite 8 deprecation warning is acceptable
             //here, the alternative (`output.codeSplitting: false`)
             //emits multiple chunks which HACS can't serve.

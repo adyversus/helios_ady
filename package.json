@@ -1,7 +1,7 @@
 {
-  "name": "helios",
+  "name": "helios_ady",
   "version": "2026.9.6",
-  "description": "HELIOS - real-time solar exposure, cloud cover and PV production card for Home Assistant",
+  "description": "HELIOS_ADY - real-time solar exposure, cloud cover and PV production card for Home Assistant",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,
