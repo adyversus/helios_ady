@@ -177,7 +177,8 @@ export const heliosCardStyles = css`
         width: 18px;
         height: 18px;
     }
-    .helios-arrow-toggle[aria-pressed="true"]
+    .helios-arrow-toggle[aria-pressed="true"],
+    .helios-details-toggle[aria-pressed="true"]
     {
         color: var(--primary-color, #03a9f4);
     }

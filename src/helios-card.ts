@@ -288,9 +288,10 @@ export class HeliosCard extends LitElement
     //available chip as the Energy config resolves (see updated()), so a card with no solar never sits on an empty
     //production selection at load.
     private _chartTargetExplicit = false;
-    //Detail panel (scene mode): a compact top-right readout aggregating the selected metric over the window. Any
-    //chip tap opens it (alongside re-pointing the chart) and a tap on the scene closes it. Bound to the active
-    //chip, not a target, so switching chips while open just re-points it.
+    //The toolbar enables chip-triggered detail popups; the panel itself can still be dismissed on the scene.
+    @state() _detailPanelEnabled = false;
+    //Detail panel (scene mode): a compact top-right readout aggregating the selected metric over the window.
+    //When enabled, chip taps open it alongside re-pointing the chart; a scene tap closes it.
     @state() _infoPanelOpen = false;
     //The day curve is the active chip's second notch: it is UP or it is not, said by the user, not derived from
     //which chip happens to be selected. Derived, it could not be dismissed - production is the default target, so a
@@ -558,6 +559,11 @@ export class HeliosCard extends LitElement
         this._engine?.setWindowAzimuthArrowVisible(enabled);
         this.requestUpdate();
     };
+    private _onDetailPanelToggle = (): void =>
+    {
+        this._detailPanelEnabled = !this._detailPanelEnabled;
+        this._infoPanelOpen = this._detailPanelEnabled;
+    };
 
     //Recorder period for the energy change-series: the user's display cadence capped per mode, so the month
     //window never pulls 5-min rows. Read by the fetch hosts (pv/grid/battery).
@@ -610,8 +616,7 @@ export class HeliosCard extends LitElement
         {
             this.setChartTarget(target);
         }
-        //Any chip tap opens (or keeps open) the panel on that chip; closing is done elsewhere, not by re-tapping.
-        this._infoPanelOpen = true;
+        this._infoPanelOpen = this._detailPanelEnabled;
     };
 
     private _onWindowCurtainClick = (e: Event): void =>
@@ -632,7 +637,7 @@ export class HeliosCard extends LitElement
             this.setChartTarget('curtain');
             this.persistUiState();
         }
-        this._infoPanelOpen = true;
+        this._infoPanelOpen = this._detailPanelEnabled;
     };
 
     //Last target the home prism was painted for, so updated() can tell a chip CHANGE (play the squash/grow)
@@ -1858,6 +1863,18 @@ export class HeliosCard extends LitElement
                             <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"></circle>
                             <path d="m14.8 9.2-2.1 5.6-3.5-3.4z" fill="currentColor"></path>
                         </svg></button>
+                        ${showDetailPanel(this.config) ? html`
+                            <button
+                                class="helios-zoom-btn helios-details-toggle"
+                                type="button"
+                                title=${this._detailPanelEnabled ? 'Disable detail popups' : 'Enable detail popups'}
+                                aria-label=${this._detailPanelEnabled ? 'Disable detail popups' : 'Enable detail popups'}
+                                aria-controls="helios-detail-panel"
+                                aria-pressed=${this._detailPanelEnabled ? 'true' : 'false'}
+                                @pointerdown=${this._stopPointer}
+                                @click=${this._onDetailPanelToggle}
+                            ><ha-icon icon="mdi:information-outline"></ha-icon></button>
+                        ` : nothing}
                     </div>
                 ` : nothing}
 

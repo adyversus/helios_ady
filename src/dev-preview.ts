@@ -65,6 +65,7 @@ const PREVIEW_ICON_GLYPHS: Record<string, string> = {
     'mdi:water-percent': '◒',
     'mdi:clock-outline': '◷',
     'mdi:circle-medium': '•',
+    'mdi:information-outline': 'ⓘ',
     'mdi:skip-forward': '≫',
     'mdi:weather-pouring': '☔',
     'mdi:weather-sunset-up': '☀↑',
