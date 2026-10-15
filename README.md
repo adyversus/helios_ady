@@ -34,6 +34,8 @@ cross your sky.
 
 ## Install
 
+**Compatibility:** Helios is a Lovelace frontend custom card. The release metadata sets minimum versions of Home Assistant `2026.1.0` and HACS `1.32.0`. HACS serves the single `helios.js` module; manual installations register the same file as a module resource below.
+
 1. Open **HACS**, search for **Helios**, install it.
 2. Reload your browser.
 3. On your dashboard: **Edit**, then **+ Add card**, then search **Helios**.
