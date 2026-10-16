@@ -695,7 +695,7 @@ function configNumber(value: unknown): number | null
     return null;
 }
 
-function readableWindowLabel(id: string): string
+export function readableWindowLabel(id: string): string
 {
     return id.split(/[-_]+/).filter(Boolean)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Window';

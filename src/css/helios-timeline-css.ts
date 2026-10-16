@@ -79,6 +79,28 @@ export const heliosTimelineStyles = css`
         min-height: 36px;
         overflow: hidden;
     }
+    .tb-chart-window-label
+    {
+        position: absolute;
+        z-index: 3;
+        top: 4px;
+        left: 6px;
+        display: block;
+        max-width: min(55%, 14rem);
+        overflow: hidden;
+        padding: 2px 7px;
+        border: 1px solid var(--divider-color, var(--ha-card-border-color, rgba(0, 0, 0, 0.18)));
+        border-radius: 999px;
+        background: var(--card-background-color, #fff);
+        box-shadow: var(--helios-shadow-chip);
+        color: var(--primary-text-color, #212121);
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        pointer-events: none;
+    }
     /*  Pinned to the chart card via absolute + inset rather than a percentage height: .tb-chart-card takes its
         height from flex without ever stating one, so a percentage would resolve against an indefinite height.
         Absolute + inset instead resolves against the positioned parent's padding box, which is always definite,

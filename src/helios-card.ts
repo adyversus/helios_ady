@@ -21,6 +21,7 @@ import
     horizonLineColor,
     sceneZoom,
     windowAzimuthArrowEnabled,
+    readableWindowLabel,
     resolveWindowDefinitions,
 } from './core/config/helios-config';
 import { chipSlotColor, chipSlotIcon } from './core/config/chip-appearance';
@@ -54,6 +55,7 @@ import
     renderTimelineNightZones,
     renderTimelineFutureMask,
     renderTimelineHoverTooltip,
+    targetLabel,
     onChartHoverMove,
     onChartHoverLeave
 } from './charts/charts';
@@ -1812,6 +1814,18 @@ export class HeliosCard extends LitElement
         //isn't misleading. Re-evaluated every render.
         const cameraLocked = this._isCameraLocked();
         const windowEvaluations = this._engine?.getWindowEvaluations() ?? [];
+        const chartWindow = this._chartTarget === 'curtain'
+            ? windowEvaluations.find((window) => window.id === this._selectedWindowId)
+                ?? windowEvaluations.find((window) => window.definition !== null)
+                ?? windowEvaluations[0]
+            : undefined;
+        const chartTitle = this._chartTarget === 'curtain'
+            ? chartWindow ? readableWindowLabel(chartWindow.id) : ''
+            : this._chartTarget === 'irradiance'
+                || this._chartTarget === 'temperature'
+                || this._chartTarget === 'humidity'
+                ? targetLabel(this, this._chartTarget)
+                : '';
         //Detail panel accent (from the active chip) drives both the panel border and the little "i" badge on the
         //open chip, so it lives as a card-level class + CSS var.
         const infoOpen = this._infoPanelOpen;
@@ -1937,6 +1951,13 @@ export class HeliosCard extends LitElement
                                 @pointermove=${this._onChartHoverMove}
                                 @pointerleave=${this._onChartHoverLeave}
                             >
+                                ${chartTitle ? html`
+                                    <span
+                                        class="tb-chart-window-label"
+                                        aria-label=${chartTitle}
+                                        title=${chartTitle}
+                                    >${chartTitle}</span>
+                                ` : nothing}
                                 ${keyed(`${this._chartTarget}|${this._selectedWindowId ?? ''}|${this._timelineMode}`, renderBottomChart(this))}
                                 ${(this._timelineMode === 'forecast' || this._timelineMode === 'today' || this._timelineMode === 'yesterday' || this._timelineMode === 'week')
         ? renderTimelineNightZones(this) : nothing}
