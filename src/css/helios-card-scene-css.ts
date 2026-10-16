@@ -1054,7 +1054,7 @@ export const heliosCardStyles = css`
         gap: 8px;
         pointer-events: none;
     }
-    .helios-window-chips .helios-corner-chip
+    .helios-window-chips .helios-corner-chip[data-window-id]
     {
         width: 100%;
         max-width: none;
@@ -1062,6 +1062,28 @@ export const heliosCardStyles = css`
         min-height: 44px;
         padding: 5px 8px;
         pointer-events: auto;
+    }
+    .helios-window-chips .helios-corner-chip.has-window-progress
+    {
+        padding-bottom: 8px;
+    }
+    .helios-window-chips .helios-corner-chip.has-window-progress::before
+    {
+        content: '';
+        position: absolute;
+        right: 8px;
+        bottom: 4px;
+        left: 8px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(
+            to right,
+            var(--chip-color) 0%,
+            var(--chip-color) var(--window-closed-percent),
+            var(--divider-color, rgba(0, 0, 0, 0.2)) var(--window-closed-percent),
+            var(--divider-color, rgba(0, 0, 0, 0.2)) 100%
+        );
+        pointer-events: none;
     }
     /*  Corner chips (cost, temperature, humidity): a centered row pinned along the BOTTOM of the scene, so they
         read as secondary info and group with the home/grid/battery pill family rather than fighting the irradiance

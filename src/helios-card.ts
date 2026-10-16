@@ -1319,7 +1319,7 @@ export class HeliosCard extends LitElement
                 : openPercent >= 100 ? 'mdi:blinds-open'
                     : 'mdi:blinds-horizontal';
         const warning = window.warnings.join('; ');
-        const text = available ? `${window.label} ${openPercent}% open`
+        const text = available ? window.label
             : `${window.label} unavailable: ${window.errors[0] ?? 'window geometry unavailable'}`;
         const hidden = this._dayCurveOpen
             && (this._chartTarget !== 'curtain' || this._selectedWindowId !== window.id);
@@ -1327,6 +1327,7 @@ export class HeliosCard extends LitElement
             color: '#607d8b',
             icon: curtainIcon,
             statusIcon: available && exposure ? WINDOW_EXPOSURE_ICONS[exposure] : undefined,
+            progressPercent: available ? 100 - openPercent : undefined,
             target: available ? 'curtain' : null,
             windowId: window.id,
             interactive: available,
@@ -1334,7 +1335,7 @@ export class HeliosCard extends LitElement
                 ? `${window.label}: ${openPercent}% open, ${exposureState}.${warning ? ` ${warning}.` : ''} Show window timeline and details.`
                 : `${window.label}: window unavailable. ${window.errors.join('; ')}`,
             title: available
-                ? `${window.label}: ${openPercent}% open, ${exposureState}. Show its timeline and details${warning ? `. ${warning}` : ''}`
+                ? `${window.label}: ${exposureState}. Show its timeline and details${warning ? `. ${warning}` : ''}`
                 : window.errors.join('; '),
             ariaExpanded: this._infoPanelOpen && this._chartTarget === 'curtain' && this._selectedWindowId === window.id,
             ariaControls: 'helios-detail-panel',
@@ -1349,6 +1350,7 @@ export class HeliosCard extends LitElement
             color?: string;
             icon?: string;
             statusIcon?: string;
+            progressPercent?: number;
             interactive?: boolean;
             ariaLabel?: string;
             title?: string;
@@ -1366,6 +1368,9 @@ export class HeliosCard extends LitElement
         const target = options.target === undefined ? slot : options.target;
         const color   = options.color ?? chipSlotColor(this, this.config, slot);
         const icon    = options.icon ?? chipSlotIcon(this.config, slot);
+        const progressPercent = options.progressPercent !== undefined && Number.isFinite(options.progressPercent)
+            ? Math.min(100, Math.max(0, options.progressPercent)) : undefined;
+        const progressStyle = progressPercent === undefined ? '' : `;--window-closed-percent:${progressPercent}%`;
         //Same re-targeting gesture as the scene chips: one tap points the chart + around-house curve at this
         //metric, a second tap on the active chip toggles its day curve (onChartTargetClick).
         const active  = interactive && target !== null && this._chartTarget === target
@@ -1375,8 +1380,8 @@ export class HeliosCard extends LitElement
         //inert, unfocusable and out of the a11y tree, so role/tabindex/click can stay static.
         return html`
             <div
-                class="helios-corner-chip ${active ? 'is-chart-active' : ''} ${curveOn ? 'is-curve-on' : ''} ${hidden ? 'is-slot-hidden' : ''}"
-                style=${`--chip-color:${color}`}
+                class="helios-corner-chip ${active ? 'is-chart-active' : ''} ${curveOn ? 'is-curve-on' : ''} ${hidden ? 'is-slot-hidden' : ''} ${progressPercent !== undefined ? 'has-window-progress' : ''}"
+                style=${`--chip-color:${color}${progressStyle}`}
                 role=${interactive ? 'button' : 'status'}
                 tabindex=${interactive ? '0' : nothing}
                 aria-label=${options.ariaLabel ?? nothing}
