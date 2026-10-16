@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMaxDepthM, readableWindowLabel, windowAzimuthArrowEnabled, resolveWindowDefinitions, windowSillHeight } from '../src/core/config/helios-config';
+import { curtainMaxDepthM, readableWindowLabel, windowAzimuthArrowEnabled, resolveSelectedWindowId, resolveWindowDefinitions, windowSillHeight } from '../src/core/config/helios-config';
 import {
     centeredWindowOnFacade,
     resolveWindowGeometries,
@@ -163,6 +163,29 @@ describe('windowDefinitions config', () =>
         expect(tooMany[16].definition).toBeNull();
         expect(tooMany[16].label).toBe('984 extra windows');
         expect(tooMany[16].errors.join(' ')).toContain('supported limit of 16');
+    });
+});
+
+describe('selected window config updates', () =>
+{
+    it('preserves selection through edits and reordering, then falls back when the selected ID is removed', () =>
+    {
+        const windows = [
+            { id: 'east', building: 'home', azimuth: 90 },
+            { id: 'south', building: 'home', azimuth: 180 },
+        ];
+        const config = { windows };
+
+        expect(resolveSelectedWindowId('south', config)).toBe('south');
+
+        windows[1].azimuth = 195;
+        expect(resolveSelectedWindowId('south', config)).toBe('south');
+
+        windows.reverse();
+        expect(resolveSelectedWindowId('south', config)).toBe('south');
+
+        windows.splice(0, 1);
+        expect(resolveSelectedWindowId('south', config)).toBe('east');
     });
 });
 

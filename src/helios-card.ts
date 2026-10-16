@@ -23,6 +23,7 @@ import
     windowAzimuthArrowEnabled,
     readableWindowLabel,
     resolveWindowDefinitions,
+    resolveSelectedWindowId,
 } from './core/config/helios-config';
 import { chipSlotColor, chipSlotIcon } from './core/config/chip-appearance';
 import { buildDayProfile, daySlots, type ProfileStrand } from './data/period-totals/day-profile';
@@ -454,11 +455,10 @@ export class HeliosCard extends LitElement
             throw new Error('Invalid HELIOS configuration');
         }
         this.config = { ...config };
-        const windowEntries = resolveWindowDefinitions(this.config);
-        if (this._selectedWindowId
-            && !windowEntries.some((entry) => entry.id === this._selectedWindowId && entry.definition !== null))
+        const nextSelectedWindowId = resolveSelectedWindowId(this._selectedWindowId, this.config);
+        if (nextSelectedWindowId !== this._selectedWindowId)
         {
-            this._selectedWindowId = windowEntries.find((entry) => entry.definition !== null)?.id ?? null;
+            this._selectedWindowId = nextSelectedWindowId;
             this.persistUiState();
         }
         //The rolling window is driven by the timeline mode (timeline/timeline-modes.ts) + the persisted choice, so
