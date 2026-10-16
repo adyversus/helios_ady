@@ -53,7 +53,7 @@ import
     resolveWindowDefinitions,
     type MapThemeMode,
 } from '../core/config/helios-config';
-import { DEFAULT_WINDOW_AZIMUTH_DEG, INCHES_PER_METER, MAX_WINDOW_COUNT } from '../core/config/constants';
+import { DEFAULT_WINDOW_AZIMUTH_DEG, INCHES_PER_METER, MAX_WINDOW_COUNT, SCENE_ZOOM_LEVELS } from '../core/config/constants';
 import { CHIP_SLOTS, chipSlotColor, chipSlotIcon, type ChipSlot } from '../core/config/chip-appearance';
 import { defaultGroundPalette, GROUND_LAYER_KEYS, type GroundLayerKey } from '../scene/ground-render';
 import { deviceColorByIndex, isDarkFromCss } from '../core/format/format';
@@ -1533,9 +1533,7 @@ export class HeliosCardEditor extends LitElement
                 ${this._renderToggle('show-horizon-line', t.editor.showHorizonLine, t.editor.showHorizonLineHint, undefined, undefined, true)}
                 ${this._renderColorPicker('horizon-line-color', t.editor.horizonLineColor, t.editor.horizonLineColorHint, 'blue-grey', c['show-horizon-line'] === false)}
                 ${this._renderSelect('scene-zoom', t.editor.sceneZoom,
-        [{ value: '1',   label: '1x' },
-            { value: '1.5', label: '1.5x' },
-            { value: '2',   label: '2x' }], '1',
+        SCENE_ZOOM_LEVELS.map((value) => ({ value: String(value), label: `${value}x` })), '1',
         t.editor.sceneZoomHint)}
                 ${this._renderToggle('weather-enabled', t.editor.weatherEnabled, t.editor.weatherEnabledHint, undefined, undefined, true)}
                 ${this._renderToggle('auto-hide-ui', t.editor.noUiMode, t.editor.noUiModeHint)}

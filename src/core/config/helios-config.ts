@@ -378,8 +378,8 @@ export function moonDisplay(config: HeliosConfig | undefined): MoonDisplay
     const v = config?.['moon-display'];
     return v === 'always' || v === 'hidden' ? v : 'night';
 }
-//Scene magnification: 1 (the default, no magnification), 1.5 or 2. Multiplies the camera's px-per-metre, so the
-//basemap, buildings and shadows grow around the home; the sun/moon arcs, discs and chips stay card-sized (the arc
+//Scene magnification: 0.5, 0.75, 1 (default), 1.5 or 2. Multiplies the camera's px-per-metre, so the basemap,
+//buildings and shadows grow or shrink around the home; the sun/moon arcs, discs and chips stay card-sized (the arc
 //scale probe measures projected px per metre and compensates). Accepts a number or a numeric string (the editor's
 //select emits strings); anything else falls back to 1.
 export type SceneZoom = (typeof SCENE_ZOOM_LEVELS)[number];
