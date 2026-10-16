@@ -57,6 +57,8 @@ export interface HeliosConfig
     'camera-bearing-deg'?:     unknown;
     //When true, drag-rotate/pitch and the idle orbit are disabled so the camera stays at the configured pose. Default false.
     'camera-locked'?:          unknown;
+    //When true, selecting a different window turns the camera to face its resolved facade. Default false.
+    'focus-window-on-select'?: unknown;
     //Global display radius (m) around the home within which buildings and shadows render. Clamped [0,250],
     //default 200. Lowering it is the main perf lever on weak hardware.
     'display-radius'?:         unknown;
@@ -657,6 +659,11 @@ export function curtainMaxDepthM(config: HeliosConfig | undefined): number
 export function windowAzimuthArrowEnabled(config: HeliosConfig | undefined): boolean
 {
     return config?.['window-azimuth-arrow'] === true;
+}
+
+export function focusWindowOnSelect(config: HeliosConfig | undefined): boolean
+{
+    return config?.['focus-window-on-select'] === true;
 }
 
 

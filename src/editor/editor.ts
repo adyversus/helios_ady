@@ -1540,6 +1540,7 @@ export class HeliosCardEditor extends LitElement
                 ${this._renderSlider('no-ui-delay', t.editor.noUiDelay, MIN_NO_UI_DELAY_S, MAX_NO_UI_DELAY_S, 1, DEFAULT_NO_UI_DELAY_S, ' s', c['auto-hide-ui'] !== true)}
                 <div class="field-help">${t.editor.noUiDelayHint}</div>
                 ${this._renderToggle('auto-rotate-enabled', t.editor.autoRotate, t.editor.autoRotateHint)}
+                ${this._renderToggle('focus-window-on-select', t.editor.focusWindowOnSelect, t.editor.focusWindowOnSelectHint)}
                 ${this._renderToggle('camera-locked', t.editor.lockRotation, t.editor.lockRotationHint)}
                 ${this._renderToggle('degraded-render', t.editor.degradedRender, t.editor.degradedRenderHint)}
 

@@ -20,6 +20,7 @@ import
     showHorizonLine,
     horizonLineColor,
     sceneZoom,
+    focusWindowOnSelect,
     windowAzimuthArrowEnabled,
     readableWindowLabel,
     resolveWindowDefinitions,
@@ -108,6 +109,7 @@ import './card/registry';
 //bus. liveCards is the shared registry each card adds/removes itself from.
 import { liveCards } from './card/diagnostics';
 import { SceneHudController } from './hud/scene-hud-controller';
+import { shouldFocusWindowOnSelection } from './scene/window-camera-focus';
 
 
 //Live cards grouped by their (auto-generated) cache id, in connection order. A pasted card carries a copy of
@@ -628,6 +630,7 @@ export class HeliosCard extends LitElement
             return;
         }
         const alreadySelected = this._chartTarget === 'curtain' && this._selectedWindowId === windowId;
+        const shouldFocus = shouldFocusWindowOnSelection(focusWindowOnSelect(this.config), !alreadySelected);
         this._selectedWindowId = windowId;
         if (alreadySelected)
         {
@@ -636,6 +639,10 @@ export class HeliosCard extends LitElement
         else
         {
             this.setChartTarget('curtain');
+            if (shouldFocus)
+            {
+                this._engine?.focusWindow(windowId);
+            }
             this.persistUiState();
         }
         this._infoPanelOpen = this._detailPanelEnabled;
@@ -1171,6 +1178,7 @@ export class HeliosCard extends LitElement
         {
             this._engine.cacheKey = this.effectiveCacheId();
         }
+        this._engine?.cancelWindowFocus();
         this._engine?.persistCameraPose();
         this.persistUiState();
         //Leave the fetched data for the card that may replace this one (the editor rebuilds on every change).

@@ -219,5 +219,5 @@ resetButton?.addEventListener('click', () =>
 
 void editor.updateComplete.then(() =>
 {
-    editor.shadowRoot?.querySelector<HTMLElement>('[data-section="windows"] > summary')?.click();
+    editor.shadowRoot?.querySelector<HTMLElement>('[data-section="map"] > summary')?.click();
 });

@@ -150,6 +150,8 @@ export const sl: Translations = {
     sceneZoom: "Povečava prizora",
     sceneZoomHint: "Poveča zemljevid, stavbe in sence okoli vašega doma: 1x je privzeti prikaz, 1,5x in 2x jih prikažeta večje. Sonce, loki in ploščice ohranijo svojo velikost.",
     lockRotation: "Zakleni vrtenje",
+    focusWindowOnSelect: "Usmeri proti izbranemu oknu",
+    focusWindowOnSelectHint: "Ob izbiri drugega okna se kamera gladko obrne proti njegovi fasadi. Dom ostane na sredini; zaklenjena kamera se ne premakne.",
     lockRotationHint:
       "Povlecite predogled, da zavrtite in nagnete prizor na želeni pogled, nato pa to vklopite. Zaklep zamrzne ta pogled (vrtenje z vlečenjem in samodejno vrtenje v mirovanju se izklopita) in shrani kot v kartico, tako da se popolnoma enak pogled prikaže na vsaki napravi in brskalniku. Izklopite ga za ponovno prosto vrtenje.",
     chipsSection: "Prikaz entitet",

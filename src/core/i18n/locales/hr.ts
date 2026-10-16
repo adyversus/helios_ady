@@ -150,6 +150,8 @@ export const hr: Translations = {
     sceneZoom: "Zum scene",
     sceneZoomHint: "Povećava kartu, zgrade i sjene oko vašeg doma: 1x je zadani prikaz, 1,5x i 2x prikazuju ih veće. Sunce, lukovi i pločice zadržavaju svoju veličinu.",
     lockRotation: "Zaključaj rotaciju",
+    focusWindowOnSelect: "Usmjeri na odabrani prozor",
+    focusWindowOnSelectHint: "Odabirom drugog prozora kamera se glatko okreće prema njegovom pročelju. Dom ostaje u sredini; zaključana kamera se ne pomiče.",
     lockRotationHint:
       "Povucite pregled da biste zakrenuli i nagnuli scenu na željeni prikaz, a zatim uključite ovo. Zaključavanje zamrzava taj prikaz (zakretanje povlačenjem i automatsko okretanje u mirovanju se isključuju) i sprema kut u karticu, tako da se potpuno isti prikaz pojavljuje na svakom uređaju i pregledniku. Isključite ga za ponovno slobodno zakretanje.",
     chipsSection: "Prikaz entiteta",

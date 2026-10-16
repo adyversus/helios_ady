@@ -55,6 +55,7 @@ The visual editor exposes every option below. Direct YAML editing also works.
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `auto-rotate-enabled` | boolean | `false` | Idle camera orbit. Off by default; enable for kiosk / always-on dashboards. Any drag pauses it, then it resumes after a short idle. |
+| `focus-window-on-select` | boolean | `false` | When enabled, selecting a different window smoothly turns the camera toward its resolved facade. The home remains centered; a locked camera does not move. Also available as a visual-editor toggle. |
 | `camera-pitch-deg` | 0-65 | `50` | Optional fixed pitch at boot. Drag still works unless locked. |
 | `camera-bearing-deg` | 0-359 | hemisphere | Optional fixed bearing at boot. |
 | `camera-locked` | boolean | `false` | Disable drag-rotate and the idle orbit; the camera stays at the configured pose. The editor's lock toggle also captures the preview's current angle into `camera-pitch-deg` / `camera-bearing-deg`. |

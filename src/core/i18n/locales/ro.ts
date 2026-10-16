@@ -150,6 +150,8 @@ export const ro: Translations = {
     sceneZoom: "Zoom scenă",
     sceneZoomHint: "Mărește harta, clădirile și umbrele din jurul casei: 1x este redarea implicită, 1,5x și 2x le afișează mai mari. Soarele, arcele și etichetele își păstrează dimensiunea.",
     lockRotation: "Blocheaza rotirea",
+    focusWindowOnSelect: "Orientează spre fereastra selectată",
+    focusWindowOnSelectHint: "Când selectezi altă fereastră, camera se rotește lin spre fațada ei. Casa rămâne centrată; o cameră blocată nu se mișcă.",
     lockRotationHint:
       "Trageți de previzualizare pentru a roti și înclina scena la vederea dorită, apoi activați această opțiune. Blocarea îngheață acea vedere (rotirea prin tragere și rotația automată în repaus sunt dezactivate) și salvează unghiul în card, astfel încât exact aceeași vedere apare pe fiecare dispozitiv și browser. Dezactivați-o pentru a roti din nou liber.",
     chipsSection: "Afisarea entitatilor",

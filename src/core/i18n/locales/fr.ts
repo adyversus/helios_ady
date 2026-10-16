@@ -149,6 +149,8 @@ export const fr: Translations = {
     sceneZoom: "Zoom de la scène",
     sceneZoomHint: "Agrandit la carte, les bâtiments et les ombres autour de votre domicile : 1x est le rendu par défaut, 1,5x et 2x les affichent plus gros à l'écran. Le soleil, les arcs et les badges gardent leur taille.",
     lockRotation: "Verrouiller la rotation",
+    focusWindowOnSelect: "Orienter vers la fenêtre sélectionnée",
+    focusWindowOnSelectHint: "Lorsqu'une autre fenêtre est sélectionnée, la caméra pivote doucement vers sa façade. Le domicile reste centré ; une caméra verrouillée ne bouge pas.",
     lockRotationHint:
       "Faites glisser l'aperçu pour pivoter et incliner la scène jusqu'à la vue souhaitée, puis activez ceci. Le verrou fige cette vue (le glisser-pour-pivoter et l'auto-rotation au repos sont désactivés) et enregistre l'angle dans la carte, pour un rendu identique sur chaque appareil et navigateur. Désactivez-le pour pivoter à nouveau librement.",
     chipsSection: "Affichage des entités",

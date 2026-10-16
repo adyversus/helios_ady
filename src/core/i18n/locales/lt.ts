@@ -150,6 +150,8 @@ export const lt: Translations = {
     sceneZoom: "Scenos mastelis",
     sceneZoomHint: "Padidina žemėlapį, pastatus ir šešėlius aplink jūsų namus: 1x yra numatytasis vaizdas, 1,5x ir 2x rodo juos didesnius. Saulė, lankai ir žymos išlaiko savo dydį.",
     lockRotation: "Užrakinti kampą",
+    focusWindowOnSelect: "Pasukti į pasirinktą langą",
+    focusWindowOnSelectHint: "Pasirinkus kitą langą kamera sklandžiai pasisuka į jo fasadą. Namai lieka centre; užrakinta kamera nejuda.",
     lockRotationHint:
       "Vilkite peržiūrą, kad pasuktumėte ir pakreiptumėte sceną iki norimo vaizdo, tada įjunkite tai. Užraktas užfiksuoja tą vaizdą (sukimas velkant ir automatinis sukimasis ramybės būsenoje išjungiami) ir įrašo kampą į kortelę, todėl tiksliai tas pats vaizdas rodomas kiekviename įrenginyje ir naršyklėje. Išjunkite jį, kad vėl galėtumėte laisvai sukti.",
     chipsSection: "Objektų rodymas",
