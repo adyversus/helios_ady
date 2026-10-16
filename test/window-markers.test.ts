@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curtainMaxDepthM, windowAzimuthArrowEnabled, resolveWindowDefinitions, windowSillHeight } from '../src/core/config/helios-config';
+import { curtainMaxDepthM, readableWindowLabel, windowAzimuthArrowEnabled, resolveWindowDefinitions, windowSillHeight } from '../src/core/config/helios-config';
 import {
     centeredWindowOnFacade,
     resolveWindowGeometries,
@@ -12,6 +12,16 @@ import {
     type CenteredWindow,
     DEFAULT_WINDOW_AZIMUTH_DEG,
 } from '../src/scene/window-markers';
+
+describe('readableWindowLabel', () =>
+{
+    it('humanizes stable window IDs for display', () =>
+    {
+        expect(readableWindowLabel('bedroom-room-1')).toBe('Bedroom Room 1');
+        expect(readableWindowLabel('living_room')).toBe('Living Room');
+        expect(readableWindowLabel('')).toBe('Window');
+    });
+});
 
 describe('centeredWindowOnFacade', () =>
 {
