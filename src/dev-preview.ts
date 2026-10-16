@@ -143,7 +143,7 @@ const card = document.querySelector('helios-ady-card') as (HTMLElement & {
     preview: boolean;
     setConfig: (config: Record<string, unknown>) => void;
 }) | null;
-const editor = document.querySelector('helios-card-editor') as (HTMLElement & {
+const editor = document.querySelector('helios-card-ady-editor') as (HTMLElement & {
     hass: HassLike;
     setConfig: (config: Record<string, unknown>) => void;
     updateComplete: Promise<unknown>;

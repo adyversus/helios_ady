@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 //Styles for the config editor, separate from the runtime card's sheet so editor and card never share
-//selectors. Single export: `editorStyles`, applied to <helios-card-editor>. Sizes/radii/weights/danger
+//selectors. Single export: `editorStyles`, applied to <helios-card-ady-editor>. Sizes/radii/weights/danger
 //colour route through HA tokens (with a literal fallback) so the editor tracks the active theme.
 
 export const editorStyles = css`

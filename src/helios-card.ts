@@ -1,6 +1,6 @@
 import type { PropertyValues, TemplateResult} from 'lit';
 import { LitElement, html, svg, nothing } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { property, state, query } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { HassLike } from './core/ha-types';
 import type { HeliosEngine, WeatherOverrideVar } from './scene/helios-engine';
@@ -97,7 +97,7 @@ import
     initVisibilityObserver,
     publishConsumptionColor
 } from './card/init';
-//Side-effect import: registers <helios-card-editor> as a custom element.
+//Side-effect import: registers <helios-card-ady-editor> as a custom element.
 import './editor/editor';
 //Side-effect import: writes the Helios entry into window.customCards for the HA card picker.
 import './card/registry';
@@ -123,7 +123,6 @@ const WINDOW_EXPOSURE_ICONS: Record<WindowSunState, string> = {
     FULLY_SHADED:       'mdi:weather-cloudy',
 };
 
-@customElement('helios-ady-card')
 export class HeliosCard extends LitElement
 {
     @property({ attribute: false }) public hass!: HassLike;
@@ -900,7 +899,7 @@ export class HeliosCard extends LitElement
 
     static getConfigElement(): HTMLElement
     {
-        return document.createElement('helios-card-editor');
+        return document.createElement('helios-card-ady-editor');
     }
 
     //HA <hui-card-picker> signature: (hass, entities, entitiesFallback). Two cases:
@@ -2219,4 +2218,9 @@ export class HeliosCard extends LitElement
     }
 
     static styles = [heliosCardStyles, heliosTimelineStyles];
+}
+
+if (!customElements.get('helios-ady-card'))
+{
+    customElements.define('helios-ady-card', HeliosCard);
 }
