@@ -701,6 +701,20 @@ export function readableWindowLabel(id: string): string
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Window';
 }
 
+export function resolveSelectedWindowId(selectedId: string | null, config: HeliosConfig | undefined): string | null
+{
+    if (!selectedId)
+    {
+        return selectedId;
+    }
+    const entries = resolveWindowDefinitions(config);
+    if (entries.some((entry) => entry.id === selectedId && entry.definition !== null))
+    {
+        return selectedId;
+    }
+    return entries.find((entry) => entry.definition !== null)?.id ?? null;
+}
+
 //Resolve raw YAML into typed definitions. Invalid entries remain represented for the editor's diagnostics and
 //disabled per-window button; geometry-dependent fit/facade checks belong to the scene calculation module.
 export function resolveWindowDefinitions(config: HeliosConfig | undefined): WindowDefinitionEntry[]
