@@ -1,6 +1,6 @@
 import type { TemplateResult} from 'lit';
 import { LitElement, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
 import type { HassLike } from '../core/ha-types';
@@ -65,7 +65,6 @@ import { batteryLiveIsBucketSourced } from '../data/sources/battery';
 
 
 // Visual editor exposing every config option through native HA form controls.
-@customElement('helios-card-editor')
 export class HeliosCardEditor extends LitElement
 {
     @property({ attribute: false }) public hass?: HassLike;
@@ -1880,4 +1879,9 @@ export class HeliosCardEditor extends LitElement
     }
 
     static styles = editorStyles;
+}
+
+if (!customElements.get('helios-card-ady-editor'))
+{
+    customElements.define('helios-card-ady-editor', HeliosCardEditor);
 }
