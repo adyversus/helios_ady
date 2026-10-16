@@ -150,6 +150,8 @@ export const es: Translations = {
     sceneZoom: "Zoom de la escena",
     sceneZoomHint: "Amplía el mapa, los edificios y las sombras alrededor de su casa: 1x es el renderizado por defecto, 1,5x y 2x los muestran más grandes. El sol, los arcos y los indicadores conservan su tamaño.",
     lockRotation: "Bloquear rotación",
+    focusWindowOnSelect: "Enfocar ventana seleccionada",
+    focusWindowOnSelectHint: "Al seleccionar otra ventana, la cámara gira suavemente hacia su fachada. La casa permanece centrada; una cámara bloqueada no se mueve.",
     lockRotationHint:
       "Arrastra la vista previa para girar e inclinar la escena hasta la vista que quieras y luego activa esto. El bloqueo congela esa vista (se desactivan el giro con arrastre y la rotación automática en reposo) y guarda el ángulo en la tarjeta, de modo que la misma vista aparece en todos los dispositivos y navegadores. Desactívalo para volver a girar libremente.",
     chipsSection: "Visualización de entidades",

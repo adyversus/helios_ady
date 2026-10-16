@@ -150,6 +150,8 @@ export const nl: Translations = {
     sceneZoom: "Scènezoom",
     sceneZoomHint: "Vergroot de kaart, gebouwen en schaduwen rond uw huis: 1x is de standaardweergave, 1,5x en 2x tonen ze groter. De zon, de bogen en de chips behouden hun grootte.",
     lockRotation: "Rotatie vergrendelen",
+    focusWindowOnSelect: "Richt op geselecteerd raam",
+    focusWindowOnSelectHint: "Bij selectie van een ander raam draait de camera soepel naar de gevel. De woning blijft in het midden; een vergrendelde camera beweegt niet.",
     lockRotationHint:
       "Sleep in het voorbeeld om de scène te draaien en te kantelen naar de gewenste weergave en zet dit vervolgens aan. De vergrendeling zet die weergave vast (draaien via slepen en de automatische rotatie in rust worden uitgeschakeld) en slaat de hoek op in de kaart, zodat exact dezelfde weergave op elk apparaat en in elke browser verschijnt. Zet het uit om weer vrij te draaien.",
     chipsSection: "Entiteitweergave",

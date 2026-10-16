@@ -150,6 +150,8 @@ export const it: Translations = {
     sceneZoom: "Zoom della scena",
     sceneZoomHint: "Ingrandisce mappa, edifici e ombre intorno alla casa: 1x è la resa predefinita, 1,5x e 2x li mostrano più grandi. Sole, archi e riquadri mantengono le loro dimensioni.",
     lockRotation: "Blocca rotazione",
+    focusWindowOnSelect: "Inquadra la finestra selezionata",
+    focusWindowOnSelectHint: "Quando selezioni un'altra finestra, la videocamera ruota dolcemente verso la relativa facciata. La casa resta centrata; una videocamera bloccata non si muove.",
     lockRotationHint:
       "Trascina l'anteprima per ruotare e inclinare la scena fino alla vista desiderata, poi attiva questa opzione. Il blocco congela quella vista (la rotazione con trascinamento e l'auto-rotazione a riposo vengono disattivate) e salva l'angolo nella scheda, così la stessa identica vista appare su ogni dispositivo e browser. Disattivalo per ruotare di nuovo liberamente.",
     chipsSection: "Visualizzazione entità",

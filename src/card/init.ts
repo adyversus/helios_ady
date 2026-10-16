@@ -55,6 +55,7 @@ const STATIC_VISUAL_CONFIG_KEYS = [
     'windows',
     'building-opacity',
     'auto-rotate-enabled',
+    'focus-window-on-select',
     //Lock toggle: a change triggers updateConfig, which freezes/frees the camera at its current (drag-set) pose and
     //resyncs the stored pose. The buildings re-interpret that updateConfig also triggers is cheap (cached footprints, no refetch).
     'camera-locked',

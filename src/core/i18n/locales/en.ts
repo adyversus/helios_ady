@@ -141,6 +141,9 @@ export const en: Translations = {
     lockRotation: "Lock rotation",
     lockRotationHint:
       "Drag the preview to rotate and tilt the scene to the view you want, then turn this on. Locking freezes that view (drag-to-rotate and the idle auto-orbit stop) and saves the angle to the card, so the exact same view appears on every device and browser. Turn it off to rotate freely again.",
+    focusWindowOnSelect: "Face selected window",
+    focusWindowOnSelectHint:
+      "When you select a different window, the camera smoothly turns toward its facade. The home stays centered; a locked camera does not move.",
     chipsSection: "Entity display",
     chipsIntro:
       "Show or hide each entity, and pick its icon and colour. The home follows the selected chip, or your primary colour by default.",

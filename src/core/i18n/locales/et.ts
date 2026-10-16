@@ -150,6 +150,8 @@ export const et: Translations = {
     sceneZoom: "Stseeni suum",
     sceneZoomHint: "Suurendab kaarti, hooneid ja varje teie kodu ümber: 1x on vaikekuva, 1,5x ja 2x näitavad neid suuremana. Päike, kaared ja sildid säilitavad oma suuruse.",
     lockRotation: "Lukusta pööramine",
+    focusWindowOnSelect: "Pööra valitud akna poole",
+    focusWindowOnSelectHint: "Teise akna valimisel pöördub kaamera sujuvalt selle fassaadi poole. Kodu jääb keskele; lukustatud kaamera ei liigu.",
     lockRotationHint:
       "Lohistage eelvaadet, et pöörata ja kallutada stseeni soovitud vaateni, seejärel lülitage see sisse. Lukk külmutab selle vaate (lohistamisega pööramine ja jõudeoleku automaatne pööramine lülitatakse välja) ja salvestab nurga kaardile, nii et täpselt sama vaade kuvatakse igas seadmes ja brauseris. Lülitage see välja, et taas vabalt pöörata.",
     chipsSection: "Olemite kuvamine",

@@ -150,6 +150,8 @@ export const isLocale: Translations = {
     sceneZoom: "Aðdráttur sviðs",
     sceneZoomHint: "Stækkar kortið, byggingar og skugga í kringum heimilið: 1x er sjálfgefin birting, 1,5x og 2x sýna þau stærri. Sólin, bogarnir og merkin halda stærð sinni.",
     lockRotation: "Læsa snúningi",
+    focusWindowOnSelect: "Beina að völdum glugga",
+    focusWindowOnSelectHint: "Þegar annar gluggi er valinn snýst myndavélin mjúklega að þeirri hlið hússins. Heimilið helst miðjað; læst myndavél hreyfist ekki.",
     lockRotationHint:
       "Dragðu forskoðunina til að snúa og halla senunni að þeirri sýn sem þú vilt og kveiktu svo á þessu. Læsingin frystir þá sýn (snúningur með drætti og sjálfvirkur snúningur í hvíld eru gerð óvirk) og vistar hornið á spjaldið, þannig að nákvæmlega sama sýn birtist á öllum tækjum og vöfrum. Slökktu á henni til að snúa frjálst aftur.",
     chipsSection: "Birting einda",

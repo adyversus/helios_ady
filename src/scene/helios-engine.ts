@@ -36,6 +36,7 @@ import
     type SceneZoom,
     displayRadiusM,
     sceneZoom,
+    focusWindowOnSelect,
     DEFAULT_BUILDING_OPACITY,
     DEFAULT_BUILDING_CLUSTER_RADIUS_M,
     DEFAULT_SHADOW_OPACITY,
@@ -54,6 +55,7 @@ import
     degradedRender,
 } from '../core/config/helios-config';
 import { isDarkFromCss, cssHex, resolveUiColor } from '../core/format/format';
+import { resolveWindowFocusBearing, WindowCameraFocusAnimator } from './window-camera-focus';
 
 function windowDefinitionsSignature(config: HeliosConfig | undefined): string
 {
@@ -143,6 +145,7 @@ export class HeliosEngine
 {
     //Renderer: owns its own DOM inside #map-container and the SceneCamera every projection routes through.
     _renderer?: SceneRenderer;
+    private readonly _windowCameraFocusAnimator = new WindowCameraFocusAnimator();
     //Last curve the card handed over, kept so a resize can restamp its radius without the card involved.
     private _curveInput: CurveInput | null = null;
     homeLat:  number;
@@ -408,6 +411,60 @@ export class HeliosEngine
     public setSelectedWindowId(windowId: string | null): void
     {
         this._renderer?.setSelectedWindowId(windowId);
+    }
+
+    public focusWindow(windowId: string): void
+    {
+        const renderer = this._renderer;
+        if (!renderer || this._paused)
+        {
+            return;
+        }
+        const window = this._getWindowGeometryCache().resolved.find((entry) => entry.id === windowId);
+        const target = resolveWindowFocusBearing(
+            window?.geometry?.azimuthDeg,
+            focusWindowOnSelect(this.cfg),
+            this.isCameraLocked()
+        );
+        if (target === null)
+        {
+            return;
+        }
+
+        this._autoRotateLastUserAction = Date.now();
+        this._windowCameraFocusAnimator.animate(
+            renderer.getCameraBearing(),
+            target,
+            (bearing) =>
+            {
+                if (this._renderer !== renderer || this._paused || this.isCameraLocked()
+                    || !focusWindowOnSelect(this.cfg))
+                {
+                    this.cancelWindowFocus();
+                    return;
+                }
+                this._autoRotateLastUserAction = Date.now();
+                renderer.setCameraBearing(bearing);
+            },
+            () =>
+            {
+                if (this._renderer === renderer && !this._paused && !this.isCameraLocked()
+                    && focusWindowOnSelect(this.cfg))
+                {
+                    this._autoRotateBearing = renderer.getCameraBearing();
+                    this.persistCameraPose();
+                }
+            }
+        );
+    }
+
+    public cancelWindowFocus(persistCurrentPose = false): void
+    {
+        const wasAnimating = this._windowCameraFocusAnimator.cancel();
+        if (wasAnimating && persistCurrentPose)
+        {
+            this.persistCameraPose();
+        }
     }
 
     public getWindowEvaluations(atDate?: Date): EvaluatedWindowGeometry[]
@@ -857,6 +914,10 @@ export class HeliosEngine
             const dy = y - lastY;
             lastX = x;
             lastY = y;
+            if (dx !== 0 || (pitch && dy !== 0))
+            {
+                this.cancelWindowFocus();
+            }
             this._autoRotateLastUserAction = Date.now();
             //Drag right turns the scene with the gesture (negate dx: +dx read inverted on the canvas plane).
             this._renderer.setCameraBearing(this._renderer.getCameraBearing() - dx * ROTATE_SENSITIVITY_DEG_PER_PX);
@@ -943,6 +1004,7 @@ export class HeliosEngine
                         touchId = null;
                         return;
                     }
+                    this.cancelWindowFocus();
                     //Seat the drag on the point the verdict was reached, not on the touchdown: the lock distance
                     //has already been travelled and replaying it would jump the scene.
                     lastX = e.clientX;
@@ -1730,6 +1792,7 @@ export class HeliosEngine
         this._paused = paused;
         if (paused)
         {
+            this.cancelWindowFocus(true);
             //Drop the 60 s sky timer entirely while paused: its callback would early-return, but the timer itself
             //would still wake the page every minute. Re-armed on un-pause.
             if (this._skyTimer !== undefined)
@@ -2658,6 +2721,7 @@ export class HeliosEngine
         const prevWindowArrow = windowAzimuthArrowEnabled(this.cfg);
         const prevAutoRotateOn = this.cfg['auto-rotate-enabled'] === true;
         const prevCameraLocked = this.isCameraLocked();
+        const prevWindowFocusOnSelect = focusWindowOnSelect(this.cfg);
         const prevZoom         = sceneZoom(this.cfg);
         this._windowDefinitionsSignature = windowDefinitionsSignature(cfg);
         this.cfg = { ...cfg };
@@ -2670,6 +2734,11 @@ export class HeliosEngine
         //suspends itself when disabled to avoid a 60 Hz no-op tick).
         const nextAutoRotateOn = this.cfg['auto-rotate-enabled'] === true;
         const nextCameraLocked = this.isCameraLocked();
+        if ((prevWindowFocusOnSelect && !focusWindowOnSelect(this.cfg))
+            || (!prevCameraLocked && nextCameraLocked))
+        {
+            this.cancelWindowFocus(true);
+        }
         const nowPermitsRotation  = nextAutoRotateOn && !nextCameraLocked;
         const prevPermitsRotation = prevAutoRotateOn && !prevCameraLocked;
         if (nowPermitsRotation && !prevPermitsRotation && this._renderer)

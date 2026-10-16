@@ -150,6 +150,8 @@ export const da: Translations = {
     sceneZoom: "Scenezoom",
     sceneZoomHint: "Forstørrer kortet, bygningerne og skyggerne omkring dit hjem: 1x er standardvisningen, 1,5x og 2x viser dem større. Solen, buerne og brikkerne beholder deres størrelse.",
     lockRotation: "Lås rotation",
+    focusWindowOnSelect: "Drej mod valgt vindue",
+    focusWindowOnSelectHint: "Når du vælger et andet vindue, drejer kameraet roligt mod dets facade. Hjemmet forbliver centreret; et låst kamera flytter sig ikke.",
     lockRotationHint:
       "Træk i forhåndsvisningen for at rotere og vippe scenen til den ønskede visning, og slå så dette til. Låsen fastfryser den visning (træk-for-at-rotere og den automatiske rotation i hvile deaktiveres) og gemmer vinklen i kortet, så nøjagtig samme visning vises på alle enheder og browsere. Slå det fra for at rotere frit igen.",
     chipsSection: "Entitetsvisning",
