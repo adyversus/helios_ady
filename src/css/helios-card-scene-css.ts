@@ -1038,43 +1038,38 @@ export const heliosCardStyles = css`
     }
 
     /*  Window controls (curtain chips): a compact grid pinned at the TOP of the scene. Keep clear of the
-        top-right zoom controls and preserve the existing per-chip interaction. Auto-fit keeps four columns on
-        wider cards and drops to two on narrow cards without relying on viewport-wide breakpoints.  */
+        top-right zoom controls and preserve the existing per-chip interaction. Fixed-size chip tracks cap the
+        layout at four columns and auto-fit fewer columns when the card is narrow.  */
     .helios-window-chips
     {
         position: absolute;
         top: 12px;
         left: 12px;
         right: 56px;
-        max-width: 680px;
+        max-width: 448px;
         z-index: 9;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(106px, 100%), 1fr));
         align-items: start;
+        justify-items: start;
         gap: 8px;
         pointer-events: none;
     }
     .helios-window-chips .helios-corner-chip[data-window-id]
     {
-        width: 100%;
-        max-width: none;
+        width: 106px;
+        max-width: 100%;
         min-width: 0;
-        min-height: 44px;
-        padding: 5px 8px;
         pointer-events: auto;
-    }
-    .helios-window-chips .helios-corner-chip.has-window-progress
-    {
-        padding-bottom: 8px;
     }
     .helios-window-chips .helios-corner-chip.has-window-progress::before
     {
         content: '';
         position: absolute;
-        right: 8px;
-        bottom: 4px;
-        left: 8px;
-        height: 3px;
+        right: 10px;
+        bottom: 0;
+        left: 10px;
+        height: 2px;
         border-radius: 999px;
         background: linear-gradient(
             to right,

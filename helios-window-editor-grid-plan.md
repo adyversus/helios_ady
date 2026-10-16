@@ -16,7 +16,7 @@ Move the existing per-window curtain buttons from the bottom chip row to the top
 
 1. Render window chips in their own top-positioned container, separate from the bottom cost/weather chip row.
 2. Reuse the existing per-window curtain-chip renderer so click, selection, status, and accessibility behavior stay the same.
-3. Add responsive runtime-card styles for the grid and keep button targets at least 44 px tall.
+3. Add responsive runtime-card styles for the grid and match window-chip dimensions to the temperature and humidity chips (106 px wide, compact shared height).
 4. Do not change editor window forms, configuration shape, window limit, or scene calculations.
 
 ## Validation
@@ -25,4 +25,5 @@ Move the existing per-window curtain buttons from the bottom chip row to the top
 - Verify chip activation still selects the same window and opens the same chart/details behavior.
 - Verify the common eight-window layout uses four columns and two rows on a wider card.
 - Verify narrow cards adapt to two columns without horizontal overflow.
+- Verify each window chip matches the temperature and humidity chips' rendered width and height, including when the progress track is present.
 - Run the full test suite, typecheck, lint, and production build.
