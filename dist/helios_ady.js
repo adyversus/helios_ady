@@ -3127,7 +3127,7 @@ return new Date((c+g)/2)}var ii=/* @__PURE__ */new WeakMap;function renderTimeli
                 ${this._renderToggle("show-sun-times",t.editor.showSunTimes,t.editor.showSunTimesHint,void 0,void 0,!0)}
                 ${this._renderToggle("show-horizon-line",t.editor.showHorizonLine,t.editor.showHorizonLineHint,void 0,void 0,!0)}
                 ${this._renderColorPicker("horizon-line-color",t.editor.horizonLineColor,t.editor.horizonLineColorHint,"blue-grey",!1===e["show-horizon-line"])}
-                ${this._renderSelect("scene-zoom",t.editor.sceneZoom,[{value:"1",label:"1x"},{value:"1.5",label:"1.5x"},{value:"2",label:"2x"}],"1",t.editor.sceneZoomHint)}
+                ${this._renderSelect("scene-zoom",t.editor.sceneZoom,Ce.map(e=>({value:String(e),label:`${e}x`})),"1",t.editor.sceneZoomHint)}
                 ${this._renderToggle("weather-enabled",t.editor.weatherEnabled,t.editor.weatherEnabledHint,void 0,void 0,!0)}
                 ${this._renderToggle("auto-hide-ui",t.editor.noUiMode,t.editor.noUiModeHint)}
                 ${this._renderSlider("no-ui-delay",t.editor.noUiDelay,0,10,1,5," s",!0!==e["auto-hide-ui"])}
