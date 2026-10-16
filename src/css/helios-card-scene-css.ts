@@ -1037,6 +1037,32 @@ export const heliosCardStyles = css`
             radial-gradient(35% 25% at 70% 78%, rgba(150, 180, 215, 0.14), transparent 70%);
     }
 
+    /*  Window controls (curtain chips): a compact grid pinned at the TOP of the scene. Keep clear of the
+        top-right zoom controls and preserve the existing per-chip interaction. Auto-fit keeps four columns on
+        wider cards and drops to two on narrow cards without relying on viewport-wide breakpoints.  */
+    .helios-window-chips
+    {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 56px;
+        max-width: 680px;
+        z-index: 9;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+        align-items: start;
+        gap: 8px;
+        pointer-events: none;
+    }
+    .helios-window-chips .helios-corner-chip
+    {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        min-height: 44px;
+        padding: 5px 8px;
+        pointer-events: auto;
+    }
     /*  Corner chips (cost, temperature, humidity): a centered row pinned along the BOTTOM of the scene, so they
         read as secondary info and group with the home/grid/battery pill family rather than fighting the irradiance
         chip up top. Below the timeline's z-index (1000) so the timeline always wins on overlap. Each icon is tinted

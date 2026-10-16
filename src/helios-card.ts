@@ -1884,14 +1884,18 @@ export class HeliosCard extends LitElement
                     </div>
                 ` : nothing}
 
-                <!--  weather overlay layers, then the weather chips (temperature, humidity),
-                      grouped along the bottom with the scene pill family (lifted above the timeline when shown).  -->
+                <!--  Weather overlay layers, followed by the window controls at the top and weather/cost chips
+                      grouped along the bottom with the scene pill family.  -->
                 ${weatherOverlay()}
+                ${windowEvaluations.length ? html`
+                    <div class="helios-window-chips" role="group" aria-label="Window controls">
+                        ${windowEvaluations.map((window) => this._renderCurtainChip(window))}
+                    </div>
+                ` : nothing}
                 <div class="helios-corner-chips ${timelineShown ? 'has-timeline' : ''}">
                     ${this._renderCostChip()}
                     ${this._renderTempChip()}
                     ${this._renderHumidityChip()}
-                    ${windowEvaluations.map((window) => this._renderCurtainChip(window))}
                 </div>
 
                 ${timelineShown ? html`
