@@ -82,6 +82,8 @@ export interface HeliosConfig
     'window-azimuth-arrow'?:   unknown;
     //Optional list of individually configured home windows. Absent preserves the legacy implicit window.
     windows?:                  unknown;
+    //Adaptive Cover Pro entity IDs selected in the editor's entity-registry section. Optional for existing cards.
+    'adaptive-cover-pro-entity-ids'?: unknown;
     //Cast-shadow master toggle. Default true.
     'shadows-enabled'?:        unknown;
     //Opacity 0..1 of the cast ground shadow layer. Default 0.32.

@@ -121,6 +121,55 @@ export const editorStyles = css`
         color: var(--primary-color, #03a9f4);
     }
 
+    .adaptive-cover-registry-group
+    {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 10px;
+        border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color, rgba(0,0,0,0.12));
+    }
+    .adaptive-cover-registry-group-title
+    {
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-s, 12px);
+        overflow-wrap: anywhere;
+    }
+    .adaptive-cover-registry-entity
+    {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) minmax(0, auto);
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        cursor: pointer;
+    }
+    .adaptive-cover-registry-entity input
+    {
+        accent-color: var(--primary-color, #03a9f4);
+        margin: 0;
+    }
+    .adaptive-cover-registry-name
+    {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+    .adaptive-cover-registry-id
+    {
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-xs, 11px);
+        overflow-wrap: anywhere;
+    }
+    .adaptive-cover-registry-entity.is-unavailable
+    {
+        color: var(--secondary-text-color, #727272);
+    }
+    @media (max-width: 480px)
+    {
+        .adaptive-cover-registry-entity { grid-template-columns: 20px minmax(0, 1fr); }
+        .adaptive-cover-registry-id { grid-column: 2; }
+    }
+
     /*  Always-visible live-data status, pinned above the collapsible sections (its own title, no <details>).
         Its title matches the collapsible sections' flex row so the icon centres on the text (a bare
         .section-title block would baseline-align the icon and sit it too high). */

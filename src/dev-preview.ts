@@ -130,12 +130,34 @@ const hass: HassLike = {
         if (type === 'energy/info') {
             return { cost_sensors: {} } as T;
         }
+        if (type === 'config/entity_registry/list') {
+            return [
+                {
+                    entity_id: 'sensor.office_decision_trace',
+                    name: 'Office decision trace',
+                    platform: 'adaptive_cover_pro',
+                    config_entry_id: 'preview-office',
+                },
+                {
+                    entity_id: 'sensor.office_geometry',
+                    name: 'Office geometry',
+                    platform: 'adaptive_cover_pro',
+                    config_entry_id: 'preview-office',
+                },
+                {
+                    entity_id: 'sensor.living_room_geometry',
+                    name: 'Living room geometry',
+                    platform: 'adaptive_cover_pro',
+                    config_entry_id: 'preview-living-room',
+                },
+            ] as T;
+        }
         return {} as T;
     },
     language: 'en',
     locale: { time_format: '24' },
     themes: { darkMode: false },
-    user: { is_admin: false },
+    user: { is_admin: true },
 };
 
 const card = document.querySelector('helios-ady-card') as (HTMLElement & {
