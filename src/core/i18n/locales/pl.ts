@@ -16,6 +16,7 @@ export const pl: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SW,W,NW",
+  horizonCompass: { label: "Pokaż litery kompasu", hint: "Pokazuje N/E/S/W wokół horyzontu niezależnie od linii terenu.", N: "Północ", E: "Wschód", S: "Południe", W: "Zachód" },
 
   cloudCover: {
     cloudLow: "Niskie zachmurzenie",

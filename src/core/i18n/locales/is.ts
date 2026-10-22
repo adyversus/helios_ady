@@ -16,6 +16,7 @@ export const isLocale: Translations = {
   },
 
   compass: "N,NA,A,SA,S,SV,V,NV",
+  horizonCompass: { label: "Sýna áttavitastafi", hint: "Sýna N/E/S/W við sjóndeildarhringinn óháð landslagslínunni.", N: "Norður", E: "Austur", S: "Suður", W: "Vestur" },
 
   cloudCover: {
     cloudLow: "Lág skýjahula",

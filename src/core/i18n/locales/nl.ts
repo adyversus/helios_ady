@@ -16,6 +16,7 @@ export const nl: Translations = {
   },
 
   compass: "N,NO,O,ZO,Z,ZW,W,NW",
+  horizonCompass: { label: "Kompasletters tonen", hint: "Toon N/E/S/W rond de horizon, onafhankelijk van de terreinlijn.", N: "Noord", E: "Oost", S: "Zuid", W: "West" },
 
   cloudCover: {
     cloudLow: "Lage bewolking",

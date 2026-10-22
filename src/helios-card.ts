@@ -18,6 +18,7 @@ import
     showHumidity,
     showCost,
     showHorizonLine,
+    showHorizonCompass,
     horizonLineColor,
     sceneZoom,
     focusWindowOnSelect,
@@ -1517,6 +1518,7 @@ export class HeliosCard extends LitElement
         //Terrain-horizon ridge: show/hide the drawn line (the sun gate always uses the terrain), and publish its
         //colour as a :host var, resolved through the shared ui_color resolver so a token, hex or rgb all work.
         this._engine?.setHorizonLineVisible(showHorizonLine(this.config));
+        this._engine?.setHorizonCompassVisible(showHorizonCompass(this.config));
         this.style.setProperty(
             '--helios-horizon-line-color',
             resolveUiColor(this, horizonLineColor(this.config), '#607d8b', 'blue-grey')

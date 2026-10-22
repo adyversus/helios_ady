@@ -53,6 +53,7 @@ export interface Translations
 
     //Eight-point compass abbreviations for the sun-position chip, N first and clockwise, comma-joined.
     compass: string;
+    horizonCompass: { label: string; hint: string; N: string; E: string; S: string; W: string };
 
 
     //The three cloud-cover band names shown in the timeline tooltip.

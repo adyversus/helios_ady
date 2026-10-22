@@ -13,6 +13,7 @@ import { defaultGroundPalette, GROUND_LAYER_KEYS, type GroundStyle, type GroundL
 import { resolveWeatherAtTime } from '../data/weather-resolve';
 import { clusterScaleRamp, steppedArcScale } from './hud-layout';
 import { sunSpherePoint, moonSpherePoint, daylightRamp, horizonSpherePoint } from './sun-arc';
+import { projectHorizonCompass, type HorizonCompassLabel } from './horizon-compass';
 import { buildTimeSamples, timeSamplesEqual, nearestSampleAt, type TimeSample } from '../core/nearest-series';
 import { fetchHorizonProfile, horizonAltAt, horizonPeak, HORIZON_MIN_PEAK_DEG, type HorizonProfile } from '../data/sources/horizon';
 import {
@@ -183,6 +184,7 @@ export class HeliosEngine
     //profile ALWAYS refines the sun gate (realism); `_horizonLineVisible` only toggles the drawn ridge line.
     private _horizonProfile: HorizonProfile | null = null;
     private _horizonLineVisible = true;
+    private _horizonCompassVisible = false;
     private _windowAzimuthArrowOverride: boolean | null = null;
     private _horizonAbort?: AbortController;
     //Deferred initial kick + bounded retry share one timer; the counter resets on a real new request (setHome).
@@ -1871,6 +1873,16 @@ export class HeliosEngine
         this._renderForCurrentSelection();
     }
 
+    public setHorizonCompassVisible(visible: boolean): void
+    {
+        if (visible === this._horizonCompassVisible)
+        {
+            return;
+        }
+        this._horizonCompassVisible = visible;
+        this._renderForCurrentSelection();
+    }
+
     //Resolve the terrain horizon for the home, off the render path. On success it stores the profile, drops the
     //arc-sample cache so belowHorizon recomputes against the relief, and repaints. Failure leaves the flat horizon.
     private _refreshHorizon(lat: number, lon: number): void
@@ -2119,6 +2131,7 @@ export class HeliosEngine
         //Terrain-horizon ridge polyline (screen px), the relief silhouette under the sun path. Empty on flat
         //terrain or when the feature is off.
         ridge:    { x: number; y: number }[];
+        compass:  HorizonCompassLabel[];
         //Horizon crossings on the day's arc, with local tangent angle (rad) so the card draws a ring
         //perpendicular to the arc. Either may be null at high latitudes (polar summer/winter).
         sunrise:  { x: number; y: number; angleRad: number; time: Date } | null;
@@ -2296,6 +2309,11 @@ export class HeliosEngine
         //Terrain-horizon ridge: the relief silhouette as a CLOSED ring around the home (full 360°, not just the
         //sun's path, so it encircles the house). Same celestial projection as the arc (horizonSpherePoint) so the
         //sun meets the crest exactly. Empty on flat terrain or when the feature is off; the card closes the loop.
+        const compass = this._horizonCompassVisible
+            ? projectHorizonCompass(this.homeLat, this.homeLon, this._sunArcScale(),
+                azimuth => this._horizonAt(azimuth),
+                (lon, lat, altitudeM) => this._projectScenePoint(lon, lat, altitudeM))
+            : [];
         const ridge: { x: number; y: number }[] = [];
         if (this._horizonLineVisible && horizonPeak(this._horizonProfile) >= HORIZON_MIN_PEAK_DEG)
         {
@@ -2389,6 +2407,7 @@ export class HeliosEngine
             home:     { x: homeScreen.x, y: homeScreen.y },
             daylight,
             ridge,
+            compass,
             sunrise,
             sunset
         };

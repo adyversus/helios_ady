@@ -16,6 +16,7 @@ export const et: Translations = {
   },
 
   compass: "P,KI,I,KA,L,EL,LÄ,LO",
+  horizonCompass: { label: "Näita kompassi tähti", hint: "Näitab N/E/S/W horisondi ümber maastikujoonest sõltumatult.", N: "Põhi", E: "Ida", S: "Lõuna", W: "Lääs" },
 
   cloudCover: {
     cloudLow: "Madal pilvkate",

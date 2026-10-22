@@ -4,6 +4,7 @@ import { guard } from 'lit/directives/guard.js';
 import type { HeliosCard } from '../helios-card';
 import { valueDecimals, powerUnit, irradianceUnit, batterySign, maxExpectedPowerW, monitoringGroupColor, monitoringGroupIcon, chipVisible, groupChipVisible, showSunTimes, sunChipMode, batteryChipMode, moonDisplay } from '../core/config/helios-config';
 import { moonCrescentPath } from '../scene/moon-crescent';
+import { layoutHorizonCompass } from '../scene/horizon-compass';
 import { chipSlotColor, chipSlotIcon } from '../core/config/chip-appearance';
 import { pickTranslations } from '../core/i18n';
 import { darkenHex, ENERGY_COLOR, cloudCoverIcon, formatHaTime, formatIrradiance, batteryLevelIcon } from '../core/format/format';
@@ -773,6 +774,10 @@ export class SceneHudController
         const ridgePts = sunScene?.ridge ?? [];
         const showRidge = ridgePts.length >= 3;
         const ridgeLine = sunScene ? this._buildRidgeLineCached(sunScene) : '';
+        const compassText = pickTranslations(this.host.hass?.language).horizonCompass;
+        const compass = hasHomeCoords && sunScene && cam?.hasViewport
+            ? layoutHorizonCompass(sunScene.compass, sunScene.home, cam.width, cam.height)
+            : [];
 
         return html`
                 <!--  Terrain-horizon ridge: distant relief silhouette encircling the home, behind the arc + chips.  -->
@@ -780,6 +785,17 @@ export class SceneHudController
                     <svg class="solar-svg horizon-ridge-svg">
                         <polygon class="horizon-ridge-line-outline" points=${ridgeLine}></polygon>
                         <polygon class="horizon-ridge-line" points=${ridgeLine}></polygon>
+                    </svg>
+                ` : nothing}
+
+                ${compass.length > 0 ? html`
+                    <svg class="solar-svg horizon-compass-svg" role="group" aria-label=${compassText.label}>
+                        ${compass.map(label => svg`
+                            <text class="horizon-compass-letter" x=${label.x} y=${label.y}
+                                role="img" aria-label=${compassText[label.direction]}>
+                                ${label.direction}
+                            </text>
+                        `)}
                     </svg>
                 ` : nothing}
 

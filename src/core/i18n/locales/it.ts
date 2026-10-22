@@ -16,6 +16,7 @@ export const it: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SO,O,NO",
+  horizonCompass: { label: "Mostra lettere della bussola", hint: "Mostra N/E/S/W attorno all'orizzonte, indipendentemente dalla linea del terreno.", N: "Nord", E: "Est", S: "Sud", W: "Ovest" },
 
   cloudCover: {
     cloudLow: "Nuvolosità bassa",

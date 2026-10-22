@@ -118,7 +118,10 @@ The card paints the real weather over the scene (see the README). Everything her
 | `show-cost` | boolean | `true` | Show the cost chip (only ever visible when the Energy dashboard tracks a price). |
 | `show-horizon-line` | boolean | `true` | Draw the terrain horizon ridge around the house. The realistic sun dimming behind terrain is always on regardless. |
 | `horizon-line-color` | color | theme | Optional colour for the drawn horizon ridge. |
+| `show-horizon-compass` | boolean | `false` | Show standard N/E/S/W letters around the terrain horizon. Geographic north; independent of ridge-line visibility. |
 | `moon-display` | `night` / `always` / `hidden` | `night` | Draw the moon on its own arc with a phase-correct crescent, always in front of the sun. `night` shows it only while the sun is below the horizon; `always` keeps it up in daylight too. Cosmetic only: no chip, no value. |
+
+Enable **Show compass letters** beside the terrain-horizon controls in the visual editor, or set `show-horizon-compass: true` in YAML. Letters follow camera rotation while remaining upright and visible at night. They follow the terrain elevation when available and use a flat horizon while terrain data is missing or flat. Each letter stays at a fixed 14-pixel outward gap from its projected horizon anchor; nearby controls and letters never change that position or spacing. Off-screen letters are omitted rather than moved inward, and foreground controls may cover them. This setting changes no terrain fetching, shading, or energy calculations.
 
 ### Local weather sensors (override the model)
 

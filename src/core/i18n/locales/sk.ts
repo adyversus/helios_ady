@@ -16,6 +16,7 @@ export const sk: Translations = {
   },
 
   compass: "S,SV,V,JV,J,JZ,Z,SZ",
+  horizonCompass: { label: "Zobraziť písmená kompasu", hint: "Zobrazí N/E/S/W okolo horizontu nezávisle od línie terénu.", N: "Sever", E: "Východ", S: "Juh", W: "Západ" },
 
   cloudCover: {
     cloudLow: "Nízka oblačnosť",

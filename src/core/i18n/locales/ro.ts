@@ -16,6 +16,7 @@ export const ro: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SV,V,NV",
+  horizonCompass: { label: "Afișează literele busolei", hint: "Afișează N/E/S/W în jurul orizontului, independent de linia terenului.", N: "Nord", E: "Est", S: "Sud", W: "Vest" },
 
   cloudCover: {
     cloudLow: "Nori josi",

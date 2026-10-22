@@ -1532,6 +1532,7 @@ export class HeliosCardEditor extends LitElement
                 ${this._renderToggle('show-sun-times', t.editor.showSunTimes, t.editor.showSunTimesHint, undefined, undefined, true)}
                 ${this._renderToggle('show-horizon-line', t.editor.showHorizonLine, t.editor.showHorizonLineHint, undefined, undefined, true)}
                 ${this._renderColorPicker('horizon-line-color', t.editor.horizonLineColor, t.editor.horizonLineColorHint, 'blue-grey', c['show-horizon-line'] === false)}
+                ${this._renderToggle('show-horizon-compass', t.horizonCompass.label, t.horizonCompass.hint)}
                 ${this._renderSelect('scene-zoom', t.editor.sceneZoom,
         SCENE_ZOOM_LEVELS.map((value) => ({ value: String(value), label: `${value}x` })), '1',
         t.editor.sceneZoomHint)}

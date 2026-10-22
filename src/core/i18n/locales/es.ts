@@ -16,6 +16,7 @@ export const es: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SO,O,NO",
+  horizonCompass: { label: "Mostrar letras de la brújula", hint: "Muestra N/E/S/W alrededor del horizonte, independientemente de la línea del terreno.", N: "Norte", E: "Este", S: "Sur", W: "Oeste" },
 
   cloudCover: {
     cloudLow: "Nubosidad baja",
