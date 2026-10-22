@@ -213,6 +213,18 @@ export const en: Translations = {
       "House: its outline is on the map, and the scene is centred on it.",
     liveHouseMissing:
       "House: no building on the map at your coordinates, so a generic house stands in for it. Add your house to OpenStreetMap, or correct the point in the Home location section.",
+    adaptiveCoverRegistry: {
+      section: "Adaptive Cover Pro Entity Registry",
+      hint: "Select the Adaptive Cover Pro entities this card should use. Entity discovery does not control covers or change shading.",
+      refresh: "Refresh entities",
+      loading: "Loading Adaptive Cover Pro entities…",
+      empty: "No Adaptive Cover Pro entities were found.",
+      error: "Could not load the entity registry. Check Home Assistant access and try again.",
+      permission: "The entity registry is unavailable for this Home Assistant user.",
+      configEntry: "Config entry",
+      unassigned: "Other entities",
+      unavailable: "Unavailable in the entity registry",
+    },
     openEnergyConfig: "Open Energy configuration",
     buildingsSection: "Home & buildings",
     buildingsHint:

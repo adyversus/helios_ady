@@ -1,10 +1,13 @@
-import type { TemplateResult} from 'lit';
+import type { PropertyValues, TemplateResult} from 'lit';
 import { LitElement, html, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { repeat } from 'lit/directives/repeat.js';
 import type { HassLike } from '../core/ha-types';
 import { editorStyles } from '../css/helios-card-editor-css';
+import { callWS } from '../data/ha-gateway';
+import { en } from '../core/i18n/locales/en';
+import { parseAdaptiveCoverRegistry, type AdaptiveCoverRegistryEntity } from './adaptive-cover-registry';
 import
 {
     type HeliosConfig,
@@ -130,6 +133,7 @@ export class HeliosCardEditor extends LitElement
     public disconnectedCallback(): void
     {
         super.disconnectedCallback();
+        this._adaptiveCoverRegistryRequest += 1;
         window.removeEventListener('helios-camera-pose', this._onCameraPose);
         window.removeEventListener('helios-home-building', this._onHomeBuilding);
         unsubscribeEnergyPrefs(this as unknown as EnergyPrefsHost);
@@ -212,6 +216,10 @@ export class HeliosCardEditor extends LitElement
     @state() _energyDefaultsLoaded = false;
     _energyPrefsUnsub?: (() => void) | undefined;
     _gridGuard: GridGuardState = createGridGuard();
+    @state() private _adaptiveCoverEntities: AdaptiveCoverRegistryEntity[] = [];
+    @state() private _adaptiveCoverRegistryStatus: 'idle' | 'loading' | 'ready' | 'error' | 'forbidden' = 'idle';
+    private _adaptiveCoverRegistryConnection?: HassLike['connection'];
+    private _adaptiveCoverRegistryRequest = 0;
 
     public connectedCallback(): void
     {
@@ -282,8 +290,27 @@ export class HeliosCardEditor extends LitElement
         return pickTranslations(this.hass?.language);
     }
 
-    protected updated(): void
+    protected updated(changedProperties: PropertyValues): void
     {
+        if (changedProperties.has('hass'))
+        {
+            const connection = this.hass?.connection;
+            if (connection !== this._adaptiveCoverRegistryConnection)
+            {
+                this._adaptiveCoverRegistryConnection = connection;
+                this._adaptiveCoverRegistryRequest += 1;
+                if (connection)
+                {
+                    this._adaptiveCoverEntities = [];
+                    void this._loadAdaptiveCoverRegistry();
+                }
+                else
+                {
+                    this._adaptiveCoverEntities = [];
+                    this._adaptiveCoverRegistryStatus = 'idle';
+                }
+            }
+        }
         //Guard evaluation for the grid status line; no-op outside its preconditions / between re-arms.
         if (this.hass)
         {
@@ -499,6 +526,146 @@ export class HeliosCardEditor extends LitElement
             next[key] = value;
         }
         this._commit(next);
+    }
+
+    private async _loadAdaptiveCoverRegistry(): Promise<void>
+    {
+        const hass = this.hass;
+        const request = ++this._adaptiveCoverRegistryRequest;
+        if (!hass)
+        {
+            this._adaptiveCoverRegistryStatus = 'idle';
+            return;
+        }
+        if (hass.user?.is_admin === false)
+        {
+            this._adaptiveCoverEntities = [];
+            this._adaptiveCoverRegistryStatus = 'forbidden';
+            return;
+        }
+
+        this._adaptiveCoverRegistryStatus = 'loading';
+        try
+        {
+            const response = await callWS<unknown>(hass, { type: 'config/entity_registry/list' });
+            if (request !== this._adaptiveCoverRegistryRequest || !this.isConnected)
+            {
+                return;
+            }
+            if (!Array.isArray(response))
+            {
+                throw new Error('Unexpected entity registry response');
+            }
+            this._adaptiveCoverEntities = parseAdaptiveCoverRegistry(response);
+            this._adaptiveCoverRegistryStatus = 'ready';
+        }
+        catch (_error)
+        {
+            if (request === this._adaptiveCoverRegistryRequest && this.isConnected)
+            {
+                this._adaptiveCoverRegistryStatus = 'error';
+            }
+        }
+    }
+
+    private _selectedAdaptiveCoverEntityIds(): string[]
+    {
+        const configured = this._cfg['adaptive-cover-pro-entity-ids'];
+        return Array.isArray(configured)
+            ? [...new Set(configured.filter((value): value is string => typeof value === 'string' && value.trim() !== ''))]
+            : [];
+    }
+
+    private _onAdaptiveCoverEntityChange = (event: Event): void =>
+    {
+        const input = event.currentTarget as HTMLInputElement;
+        const entityId = input.dataset.entityId;
+        if (!entityId)
+        {
+            return;
+        }
+        const selected = new Set(this._selectedAdaptiveCoverEntityIds());
+        if (input.checked)
+        {
+            selected.add(entityId);
+        }
+        else
+        {
+            selected.delete(entityId);
+        }
+        this._update('adaptive-cover-pro-entity-ids', selected.size > 0 ? [...selected] : undefined);
+    };
+
+    private _renderAdaptiveCoverRegistry(t: Translations): TemplateResult
+    {
+        const labels = t.editor.adaptiveCoverRegistry ?? en.editor.adaptiveCoverRegistry!;
+        const selected = this._selectedAdaptiveCoverEntityIds();
+        const selectedSet = new Set(selected);
+        const discoveredIds = new Set(this._adaptiveCoverEntities.map(entity => entity.entityId));
+        const groups = new Map<string, AdaptiveCoverRegistryEntity[]>();
+        for (const entity of this._adaptiveCoverEntities)
+        {
+            const key = entity.configEntryId ?? '';
+            const group = groups.get(key) ?? [];
+            group.push(entity);
+            groups.set(key, group);
+        }
+        const status = this._adaptiveCoverRegistryStatus;
+        const unavailable = status === 'ready'
+            ? selected.filter(entityId => !discoveredIds.has(entityId))
+            : [];
+
+        return html`
+            <details class="advanced-section" data-section="adaptive-cover-registry" ?open=${this._openSection === 'adaptive-cover-registry'} @toggle=${this._onSectionToggleEvt}>
+                <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:database-search"></ha-icon>${labels.section}</summary>
+                <div class="hint">${labels.hint}</div>
+                ${this._renderActionButton({
+        icon: 'mdi:refresh',
+        label: labels.refresh,
+        color: 'var(--primary-color, #03a9f4)',
+        onClick: () => this._loadAdaptiveCoverRegistry(),
+    })}
+                ${status === 'loading' ? html`<div class="hint" role="status" aria-live="polite">${labels.loading}</div>` : nothing}
+                ${status === 'error' ? html`<div class="hint" role="alert">${labels.error}</div>` : nothing}
+                ${status === 'forbidden' ? html`<div class="hint" role="alert">${labels.permission}</div>` : nothing}
+                ${status === 'ready' && this._adaptiveCoverEntities.length === 0 ? html`<div class="hint" role="status">${labels.empty}</div>` : nothing}
+                ${[...groups.entries()].map(([configEntryId, entities]) => html`
+                    <div class="adaptive-cover-registry-group">
+                        <div class="adaptive-cover-registry-group-title">
+                            ${configEntryId ? `${labels.configEntry}: ${configEntryId}` : labels.unassigned}
+                        </div>
+                        ${entities.map(entity => html`
+                            <label class="adaptive-cover-registry-entity">
+                                <input
+                                    type="checkbox"
+                                    data-entity-id=${entity.entityId}
+                                    .checked=${selectedSet.has(entity.entityId)}
+                                    @change=${this._onAdaptiveCoverEntityChange}
+                                />
+                                <span class="adaptive-cover-registry-name">${entity.name}</span>
+                                <code class="adaptive-cover-registry-id">${entity.entityId}</code>
+                            </label>
+                        `)}
+                    </div>
+                `)}
+                ${unavailable.length > 0 ? html`
+                    <div class="adaptive-cover-registry-group">
+                        <div class="adaptive-cover-registry-group-title">${labels.unavailable}</div>
+                        ${unavailable.map(entityId => html`
+                            <label class="adaptive-cover-registry-entity is-unavailable">
+                                <input
+                                    type="checkbox"
+                                    data-entity-id=${entityId}
+                                    .checked=${true}
+                                    @change=${this._onAdaptiveCoverEntityChange}
+                                />
+                                <code class="adaptive-cover-registry-id">${entityId}</code>
+                            </label>
+                        `)}
+                    </div>
+                ` : nothing}
+            </details>
+        `;
     }
 
     // Free-form numeric field. Empty input clears the option (card falls back to default); a finite number commits
@@ -1621,6 +1788,8 @@ export class HeliosCardEditor extends LitElement
     ], 'default',
     t.editor.batterySignHelp, 'dropdown')}
                 </details>
+
+                ${this._renderAdaptiveCoverRegistry(t)}
 
                 <details class="advanced-section" data-section="windows" ?open=${this._openSection === 'windows'} @toggle=${this._onSectionToggleEvt}>
                     <summary class="section-title section-title-collapse"><ha-icon class="section-icon" icon="mdi:window-open"></ha-icon>Windows</summary>

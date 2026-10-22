@@ -223,6 +223,20 @@ export interface Translations
         liveForecastMissing:      string;
         liveHouseOk:              string;
         liveHouseMissing:         string;
+        //Adaptive Cover Pro editor strings fall back to English until translated in each locale.
+        adaptiveCoverRegistry?:
+        {
+            section:     string;
+            hint:        string;
+            refresh:     string;
+            loading:     string;
+            empty:       string;
+            error:       string;
+            permission:  string;
+            configEntry: string;
+            unassigned:  string;
+            unavailable: string;
+        };
         //Deep link on a non-OK status line to Home Assistant's Energy configuration.
         openEnergyConfig:         string;
         //Surrounding buildings: cluster radius, neighbour opacity, base tint.
