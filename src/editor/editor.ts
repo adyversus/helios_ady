@@ -642,8 +642,10 @@ export class HeliosCardEditor extends LitElement
                                     .checked=${selectedSet.has(entity.entityId)}
                                     @change=${this._onAdaptiveCoverEntityChange}
                                 />
-                                <span class="adaptive-cover-registry-name">${entity.name}</span>
-                                <code class="adaptive-cover-registry-id">${entity.entityId}</code>
+                                <span class="adaptive-cover-registry-entity-info">
+                                    <span class="adaptive-cover-registry-name">${entity.name}</span>
+                                    <code class="adaptive-cover-registry-id">${entity.entityId}</code>
+                                </span>
                             </label>
                         `)}
                     </div>
@@ -659,7 +661,9 @@ export class HeliosCardEditor extends LitElement
                                     .checked=${true}
                                     @change=${this._onAdaptiveCoverEntityChange}
                                 />
-                                <code class="adaptive-cover-registry-id">${entityId}</code>
+                                <span class="adaptive-cover-registry-entity-info">
+                                    <code class="adaptive-cover-registry-id">${entityId}</code>
+                                </span>
                             </label>
                         `)}
                     </div>

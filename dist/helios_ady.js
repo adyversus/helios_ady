@@ -2306,7 +2306,7 @@ return new Date((c+m)/2)}var ni=/* @__PURE__ */new WeakMap;function renderTimeli
     .adaptive-cover-registry-entity
     {
         display: grid;
-        grid-template-columns: 20px minmax(0, 1fr) minmax(0, auto);
+        grid-template-columns: 20px minmax(0, 1fr);
         align-items: center;
         gap: 8px;
         min-height: 36px;
@@ -2316,6 +2316,13 @@ return new Date((c+m)/2)}var ni=/* @__PURE__ */new WeakMap;function renderTimeli
     {
         accent-color: var(--primary-color, #03a9f4);
         margin: 0;
+    }
+    .adaptive-cover-registry-entity-info
+    {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
     }
     .adaptive-cover-registry-name
     {
@@ -2332,12 +2339,6 @@ return new Date((c+m)/2)}var ni=/* @__PURE__ */new WeakMap;function renderTimeli
     {
         color: var(--secondary-text-color, #727272);
     }
-    @media (max-width: 480px)
-    {
-        .adaptive-cover-registry-entity { grid-template-columns: 20px minmax(0, 1fr); }
-        .adaptive-cover-registry-id { grid-column: 2; }
-    }
-
     /*  Always-visible live-data status, pinned above the collapsible sections (its own title, no <details>).
         Its title matches the collapsible sections' flex row so the icon centres on the text (a bare
         .section-title block would baseline-align the icon and sit it too high). */
@@ -2931,8 +2932,10 @@ return new Date((c+m)/2)}var ni=/* @__PURE__ */new WeakMap;function renderTimeli
                                     .checked=${n.has(e.entityId)}
                                     @change=${this._onAdaptiveCoverEntityChange}
                                 />
-                                <span class="adaptive-cover-registry-name">${e.name}</span>
-                                <code class="adaptive-cover-registry-id">${e.entityId}</code>
+                                <span class="adaptive-cover-registry-entity-info">
+                                    <span class="adaptive-cover-registry-name">${e.name}</span>
+                                    <code class="adaptive-cover-registry-id">${e.entityId}</code>
+                                </span>
                             </label>
                         `)}
                     </div>
@@ -2948,7 +2951,9 @@ return new Date((c+m)/2)}var ni=/* @__PURE__ */new WeakMap;function renderTimeli
                                     .checked=${!0}
                                     @change=${this._onAdaptiveCoverEntityChange}
                                 />
-                                <code class="adaptive-cover-registry-id">${e}</code>
+                                <span class="adaptive-cover-registry-entity-info">
+                                    <code class="adaptive-cover-registry-id">${e}</code>
+                                </span>
                             </label>
                         `)}
                     </div>
