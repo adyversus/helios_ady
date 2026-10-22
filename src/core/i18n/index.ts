@@ -236,6 +236,22 @@ export interface Translations
             configEntry: string;
             unassigned:  string;
             unavailable: string;
+            noSelection: string;
+            viewEntities: string;
+            entityCount: string;
+            categoryCount: string;
+            unassignedRoom: string;
+            multipleAreas: string;
+            shutterLabel: string;
+            shutterCount: string;
+            categories:
+            {
+                controls:     string;
+                position:     string;
+                parameters:   string;
+                diagnostics:  string;
+                other:        string;
+            };
         };
         //Deep link on a non-OK status line to Home Assistant's Energy configuration.
         openEnergyConfig:         string;

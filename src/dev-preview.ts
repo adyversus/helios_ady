@@ -109,6 +109,23 @@ if (!customElements.get('ha-icon'))
     customElements.define('ha-icon', PreviewHaIcon);
 }
 
+const previewAdaptiveCoverInstances = [
+    { room: 'Bedroom', shutter: 1, prefix: 'bedroom_roller_shutter_switch_1' },
+    { room: 'Bedroom', shutter: 2, prefix: 'bedroom_roller_shutter_switch_2' },
+    { room: 'Living Room', shutter: 1, prefix: 'living_room_roller_shutter_switch_1' },
+    { room: 'Living Room', shutter: 2, prefix: 'living_room_roller_shutter_switch_2' },
+    { room: 'Office', shutter: 1, prefix: 'office_roller_shutter_switch_1' },
+    { room: 'Office', shutter: 2, prefix: 'office_roller_shutter_switch_2' },
+    { room: 'Piano Room', shutter: 1, prefix: 'piano_room_roller_shutter_switch_1' },
+    { room: 'Piano Room', shutter: 2, prefix: 'piano_room_roller_shutter_switch_2' },
+].map(instance => ({
+    ...instance,
+    configEntryId: `preview-${instance.room.toLowerCase().replaceAll(' ', '-')}-${instance.shutter}`,
+    deviceId: `preview-device-${instance.room.toLowerCase().replaceAll(' ', '-')}-${instance.shutter}`,
+    areaId: `preview-area-${instance.room.toLowerCase().replaceAll(' ', '-')}`,
+    deviceName: `${instance.room} - Roller shutter ${instance.shutter}`,
+}));
+
 const hass: HassLike = {
     states: {},
     config: {
@@ -131,26 +148,58 @@ const hass: HassLike = {
             return { cost_sensors: {} } as T;
         }
         if (type === 'config/entity_registry/list') {
-            return [
+            return previewAdaptiveCoverInstances.flatMap(instance => [
                 {
-                    entity_id: 'sensor.office_decision_trace',
-                    name: 'Office decision trace',
+                    entity_id: `button.${instance.prefix}_apply_calculated_position`,
+                    name: 'Apply Calculated Position',
                     platform: 'adaptive_cover_pro',
-                    config_entry_id: 'preview-office',
+                    config_entry_id: instance.configEntryId,
+                    device_id: instance.deviceId,
                 },
                 {
-                    entity_id: 'sensor.office_geometry',
-                    name: 'Office geometry',
+                    entity_id: `switch.${instance.prefix}_automatic_control`,
+                    name: 'Automatic Control',
                     platform: 'adaptive_cover_pro',
-                    config_entry_id: 'preview-office',
+                    config_entry_id: instance.configEntryId,
+                    device_id: instance.deviceId,
                 },
                 {
-                    entity_id: 'sensor.living_room_geometry',
-                    name: 'Living room geometry',
+                    entity_id: `sensor.${instance.prefix}_target_position`,
+                    name: 'Target Position',
                     platform: 'adaptive_cover_pro',
-                    config_entry_id: 'preview-living-room',
+                    config_entry_id: instance.configEntryId,
+                    device_id: instance.deviceId,
                 },
-            ] as T;
+                {
+                    entity_id: `number.${instance.prefix}_managed_my_position_value`,
+                    name: 'Managed My Position Value',
+                    platform: 'adaptive_cover_pro',
+                    config_entry_id: instance.configEntryId,
+                    device_id: instance.deviceId,
+                    entity_category: 'config',
+                },
+                {
+                    entity_id: `sensor.${instance.prefix}_decision_trace`,
+                    name: 'Decision Trace',
+                    platform: 'adaptive_cover_pro',
+                    config_entry_id: instance.configEntryId,
+                    device_id: instance.deviceId,
+                    entity_category: 'diagnostic',
+                },
+            ]) as T;
+        }
+        if (type === 'config/device_registry/list') {
+            return previewAdaptiveCoverInstances.map(instance => ({
+                id: instance.deviceId,
+                name: instance.deviceName,
+                area_id: instance.areaId,
+            })) as T;
+        }
+        if (type === 'config/area_registry/list') {
+            return [...new Map(previewAdaptiveCoverInstances.map(instance => [
+                instance.areaId,
+                instance.room,
+            ])).entries()].map(([area_id, name]) => ({ area_id, name })) as T;
         }
         return {} as T;
     },
