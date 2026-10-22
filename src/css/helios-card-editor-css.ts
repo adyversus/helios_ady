@@ -121,7 +121,58 @@ export const editorStyles = css`
         color: var(--primary-color, #03a9f4);
     }
 
-    .adaptive-cover-registry-group
+    details.advanced-section[data-section="adaptive-cover-registry"]
+    {
+        background: var(--secondary-background-color, rgba(127, 127, 127, 0.08));
+        border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.16));
+        border-radius: 6px;
+        padding: 10px 12px;
+    }
+    details.advanced-section[data-section="adaptive-cover-registry"] > summary
+    {
+        margin: -10px -12px 0;
+        padding: 10px 12px 6px;
+        border-radius: 6px 6px 0 0;
+    }
+
+    .adaptive-cover-registry-room
+    {
+        margin-top: 12px;
+    }
+    .adaptive-cover-registry-room-title
+    {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        list-style: none;
+        cursor: pointer;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.16));
+        color: var(--primary-text-color, #212121);
+        font-weight: var(--ha-font-weight-medium, 500);
+    }
+    .adaptive-cover-registry-room-title::-webkit-details-marker { display: none; }
+    .adaptive-cover-registry-room-title::before
+    {
+        content: '▸';
+        color: var(--secondary-text-color, #727272);
+        flex: none;
+        font-size: 11px;
+    }
+    .adaptive-cover-registry-room[open] > .adaptive-cover-registry-room-title::before
+    {
+        transform: rotate(90deg);
+    }
+    .adaptive-cover-registry-room-count
+    {
+        margin-left: auto;
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-xs, 11px);
+        font-weight: var(--ha-font-weight-regular, 400);
+    }
+
+    .adaptive-cover-registry-instance
     {
         display: flex;
         flex-direction: column;
@@ -129,13 +180,7 @@ export const editorStyles = css`
         padding-top: 10px;
         border-top: var(--ha-border-width-sm, 1px) solid var(--divider-color, rgba(0,0,0,0.12));
     }
-    .adaptive-cover-registry-group-title
-    {
-        color: var(--secondary-text-color, #727272);
-        font-size: var(--ha-font-size-s, 12px);
-        overflow-wrap: anywhere;
-    }
-    .adaptive-cover-registry-entity
+    .adaptive-cover-registry-instance-select
     {
         display: grid;
         grid-template-columns: 20px minmax(0, 1fr);
@@ -144,10 +189,51 @@ export const editorStyles = css`
         min-height: 36px;
         cursor: pointer;
     }
-    .adaptive-cover-registry-entity input
+    .adaptive-cover-registry-instance-select input
     {
         accent-color: var(--primary-color, #03a9f4);
         margin: 0;
+    }
+    .adaptive-cover-registry-instance-info
+    {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+    .adaptive-cover-registry-instance-meta
+    {
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-xs, 11px);
+    }
+    .adaptive-cover-registry-details
+    {
+        margin-left: 28px;
+    }
+    .adaptive-cover-registry-details > summary
+    {
+        color: var(--secondary-text-color, #727272);
+        cursor: pointer;
+        font-size: var(--ha-font-size-s, 12px);
+        padding: 4px 0;
+    }
+    .adaptive-cover-registry-category
+    {
+        border-left: 1px solid var(--divider-color, rgba(0,0,0,0.18));
+        margin: 6px 0 6px 4px;
+        padding-left: 10px;
+    }
+    .adaptive-cover-registry-category-title
+    {
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-s, 12px);
+        font-weight: var(--ha-font-weight-medium, 500);
+        margin-bottom: 4px;
+    }
+    .adaptive-cover-registry-entity
+    {
+        min-width: 0;
+        padding: 4px 0;
     }
     .adaptive-cover-registry-entity-info
     {
@@ -167,9 +253,14 @@ export const editorStyles = css`
         font-size: var(--ha-font-size-xs, 11px);
         overflow-wrap: anywhere;
     }
-    .adaptive-cover-registry-entity.is-unavailable
+    .adaptive-cover-registry-instance-select.is-unavailable
     {
         color: var(--secondary-text-color, #727272);
+    }
+    .adaptive-cover-registry-group-title
+    {
+        color: var(--secondary-text-color, #727272);
+        font-size: var(--ha-font-size-s, 12px);
     }
     /*  Always-visible live-data status, pinned above the collapsible sections (its own title, no <details>).
         Its title matches the collapsible sections' flex row so the icon centres on the text (a bare

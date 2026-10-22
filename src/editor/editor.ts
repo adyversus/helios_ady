@@ -7,7 +7,14 @@ import type { HassLike } from '../core/ha-types';
 import { editorStyles } from '../css/helios-card-editor-css';
 import { callWS } from '../data/ha-gateway';
 import { en } from '../core/i18n/locales/en';
-import { parseAdaptiveCoverRegistry, type AdaptiveCoverRegistryEntity } from './adaptive-cover-registry';
+import {
+    groupAdaptiveCoverRegistry,
+    parseAdaptiveCoverAreaNames,
+    parseAdaptiveCoverDeviceNames,
+    parseAdaptiveCoverRegistry,
+    type AdaptiveCoverDeviceMetadata,
+    type AdaptiveCoverRegistryEntity,
+} from './adaptive-cover-registry';
 import
 {
     type HeliosConfig,
@@ -217,6 +224,8 @@ export class HeliosCardEditor extends LitElement
     _energyPrefsUnsub?: (() => void) | undefined;
     _gridGuard: GridGuardState = createGridGuard();
     @state() private _adaptiveCoverEntities: AdaptiveCoverRegistryEntity[] = [];
+    @state() private _adaptiveCoverDeviceNames = new Map<string, AdaptiveCoverDeviceMetadata>();
+    @state() private _adaptiveCoverAreaNames = new Map<string, string>();
     @state() private _adaptiveCoverRegistryStatus: 'idle' | 'loading' | 'ready' | 'error' | 'forbidden' = 'idle';
     private _adaptiveCoverRegistryConnection?: HassLike['connection'];
     private _adaptiveCoverRegistryRequest = 0;
@@ -302,6 +311,8 @@ export class HeliosCardEditor extends LitElement
                 if (connection)
                 {
                     this._adaptiveCoverEntities = [];
+                    this._adaptiveCoverDeviceNames = new Map();
+                    this._adaptiveCoverAreaNames = new Map();
                     void this._loadAdaptiveCoverRegistry();
                 }
                 else
@@ -547,7 +558,11 @@ export class HeliosCardEditor extends LitElement
         this._adaptiveCoverRegistryStatus = 'loading';
         try
         {
-            const response = await callWS<unknown>(hass, { type: 'config/entity_registry/list' });
+            const [response, deviceResponse, areaResponse] = await Promise.all([
+                callWS<unknown>(hass, { type: 'config/entity_registry/list' }),
+                callWS<unknown>(hass, { type: 'config/device_registry/list' }).catch(() => []),
+                callWS<unknown>(hass, { type: 'config/area_registry/list' }).catch(() => []),
+            ]);
             if (request !== this._adaptiveCoverRegistryRequest || !this.isConnected)
             {
                 return;
@@ -557,6 +572,8 @@ export class HeliosCardEditor extends LitElement
                 throw new Error('Unexpected entity registry response');
             }
             this._adaptiveCoverEntities = parseAdaptiveCoverRegistry(response);
+            this._adaptiveCoverDeviceNames = parseAdaptiveCoverDeviceNames(deviceResponse);
+            this._adaptiveCoverAreaNames = parseAdaptiveCoverAreaNames(areaResponse);
             this._adaptiveCoverRegistryStatus = 'ready';
         }
         catch (_error)
@@ -568,52 +585,46 @@ export class HeliosCardEditor extends LitElement
         }
     }
 
-    private _selectedAdaptiveCoverEntityIds(): string[]
+    private _selectedAdaptiveCoverConfigEntryId(): string
     {
-        const configured = this._cfg['adaptive-cover-pro-entity-ids'];
-        return Array.isArray(configured)
-            ? [...new Set(configured.filter((value): value is string => typeof value === 'string' && value.trim() !== ''))]
-            : [];
+        const configured = this._cfg['adaptive-cover-pro-config-entry-id'];
+        return typeof configured === 'string' ? configured.trim() : '';
     }
 
-    private _onAdaptiveCoverEntityChange = (event: Event): void =>
+    private _onAdaptiveCoverInstanceChange = (event: Event): void =>
     {
         const input = event.currentTarget as HTMLInputElement;
-        const entityId = input.dataset.entityId;
-        if (!entityId)
+        if (!input.checked)
         {
             return;
         }
-        const selected = new Set(this._selectedAdaptiveCoverEntityIds());
-        if (input.checked)
-        {
-            selected.add(entityId);
-        }
-        else
-        {
-            selected.delete(entityId);
-        }
-        this._update('adaptive-cover-pro-entity-ids', selected.size > 0 ? [...selected] : undefined);
+        const configEntryId = input.value.trim();
+        this._update('adaptive-cover-pro-config-entry-id', configEntryId || undefined);
     };
 
     private _renderAdaptiveCoverRegistry(t: Translations): TemplateResult
     {
         const labels = t.editor.adaptiveCoverRegistry ?? en.editor.adaptiveCoverRegistry!;
-        const selected = this._selectedAdaptiveCoverEntityIds();
-        const selectedSet = new Set(selected);
-        const discoveredIds = new Set(this._adaptiveCoverEntities.map(entity => entity.entityId));
-        const groups = new Map<string, AdaptiveCoverRegistryEntity[]>();
-        for (const entity of this._adaptiveCoverEntities)
+        const selected = this._selectedAdaptiveCoverConfigEntryId();
+        const instances = groupAdaptiveCoverRegistry(
+            this._adaptiveCoverEntities,
+            this._adaptiveCoverDeviceNames,
+            this._adaptiveCoverAreaNames,
+            labels.configEntry,
+            labels.unassignedRoom,
+            labels.multipleAreas,
+            labels.shutterLabel,
+        );
+        const roomGroups = new Map<string, typeof instances>();
+        for (const instance of instances)
         {
-            const key = entity.configEntryId ?? '';
-            const group = groups.get(key) ?? [];
-            group.push(entity);
-            groups.set(key, group);
+            const roomInstances = roomGroups.get(instance.roomName) ?? [];
+            roomInstances.push(instance);
+            roomGroups.set(instance.roomName, roomInstances);
         }
+        const discoveredIds = new Set(instances.map(instance => instance.configEntryId));
         const status = this._adaptiveCoverRegistryStatus;
-        const unavailable = status === 'ready'
-            ? selected.filter(entityId => !discoveredIds.has(entityId))
-            : [];
+        const unavailable = status === 'ready' && selected && !discoveredIds.has(selected);
 
         return html`
             <details class="advanced-section" data-section="adaptive-cover-registry" ?open=${this._openSection === 'adaptive-cover-registry'} @toggle=${this._onSectionToggleEvt}>
@@ -629,43 +640,75 @@ export class HeliosCardEditor extends LitElement
                 ${status === 'error' ? html`<div class="hint" role="alert">${labels.error}</div>` : nothing}
                 ${status === 'forbidden' ? html`<div class="hint" role="alert">${labels.permission}</div>` : nothing}
                 ${status === 'ready' && this._adaptiveCoverEntities.length === 0 ? html`<div class="hint" role="status">${labels.empty}</div>` : nothing}
-                ${[...groups.entries()].map(([configEntryId, entities]) => html`
-                    <div class="adaptive-cover-registry-group">
-                        <div class="adaptive-cover-registry-group-title">
-                            ${configEntryId ? `${labels.configEntry}: ${configEntryId}` : labels.unassigned}
-                        </div>
-                        ${entities.map(entity => html`
-                            <label class="adaptive-cover-registry-entity">
-                                <input
-                                    type="checkbox"
-                                    data-entity-id=${entity.entityId}
-                                    .checked=${selectedSet.has(entity.entityId)}
-                                    @change=${this._onAdaptiveCoverEntityChange}
-                                />
-                                <span class="adaptive-cover-registry-entity-info">
-                                    <span class="adaptive-cover-registry-name">${entity.name}</span>
-                                    <code class="adaptive-cover-registry-id">${entity.entityId}</code>
+                <label class="adaptive-cover-registry-instance-select">
+                    <input
+                        type="radio"
+                        name="adaptive-cover-pro-instance"
+                        value=""
+                        .checked=${!selected}
+                        @change=${this._onAdaptiveCoverInstanceChange}
+                    />
+                    <span>${labels.noSelection}</span>
+                </label>
+                ${[...roomGroups.entries()].map(([roomName, roomInstances], roomIndex) => html`
+                    <details
+                        class="adaptive-cover-registry-room"
+                        ?open=${roomInstances.some(instance => instance.configEntryId === selected) || (!selected && roomIndex === 0)}
+                    >
+                        <summary class="adaptive-cover-registry-room-title">
+                            <span>${roomName}</span>
+                            <span class="adaptive-cover-registry-room-count">${roomInstances.length} ${labels.shutterCount}</span>
+                        </summary>
+                        ${roomInstances.map(instance => html`
+                    <article class="adaptive-cover-registry-instance">
+                        <label class="adaptive-cover-registry-instance-select">
+                            <input
+                                type="radio"
+                                name="adaptive-cover-pro-instance"
+                                value=${instance.configEntryId}
+                                .checked=${selected === instance.configEntryId}
+                                @change=${this._onAdaptiveCoverInstanceChange}
+                            />
+                            <span class="adaptive-cover-registry-instance-info">
+                                <span class="adaptive-cover-registry-name">${instance.name}</span>
+                                <span class="adaptive-cover-registry-instance-meta">
+                                    ${instance.categories.length} ${labels.categoryCount} · ${instance.entities.length} ${labels.entityCount}
                                 </span>
-                            </label>
+                            </span>
+                        </label>
+                        <details class="adaptive-cover-registry-details">
+                            <summary>${labels.viewEntities}</summary>
+                            ${instance.categories.map(category => html`
+                                <div class="adaptive-cover-registry-category">
+                                    <div class="adaptive-cover-registry-category-title">${labels.categories[category.key]}</div>
+                                    ${category.entities.map(entity => html`
+                                        <div class="adaptive-cover-registry-entity">
+                                            <span class="adaptive-cover-registry-entity-info">
+                                                <span class="adaptive-cover-registry-name">${entity.name}</span>
+                                                <code class="adaptive-cover-registry-id">${entity.entityId}</code>
+                                            </span>
+                                        </div>
+                                    `)}
+                                </div>
+                            `)}
+                        </details>
+                    </article>
                         `)}
-                    </div>
+                    </details>
                 `)}
-                ${unavailable.length > 0 ? html`
+                ${unavailable ? html`
                     <div class="adaptive-cover-registry-group">
                         <div class="adaptive-cover-registry-group-title">${labels.unavailable}</div>
-                        ${unavailable.map(entityId => html`
-                            <label class="adaptive-cover-registry-entity is-unavailable">
+                        <label class="adaptive-cover-registry-instance-select is-unavailable">
                                 <input
-                                    type="checkbox"
-                                    data-entity-id=${entityId}
+                                    type="radio"
+                                    name="adaptive-cover-pro-instance"
+                                    value=${selected}
                                     .checked=${true}
-                                    @change=${this._onAdaptiveCoverEntityChange}
+                                    @change=${this._onAdaptiveCoverInstanceChange}
                                 />
-                                <span class="adaptive-cover-registry-entity-info">
-                                    <code class="adaptive-cover-registry-id">${entityId}</code>
-                                </span>
-                            </label>
-                        `)}
+                                <span class="adaptive-cover-registry-entity-info"><code class="adaptive-cover-registry-id">${selected}</code></span>
+                        </label>
                     </div>
                 ` : nothing}
             </details>
