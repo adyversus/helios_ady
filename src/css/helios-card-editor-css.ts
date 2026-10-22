@@ -138,7 +138,7 @@ export const editorStyles = css`
     .adaptive-cover-registry-entity
     {
         display: grid;
-        grid-template-columns: 20px minmax(0, 1fr) minmax(0, auto);
+        grid-template-columns: 20px minmax(0, 1fr);
         align-items: center;
         gap: 8px;
         min-height: 36px;
@@ -148,6 +148,13 @@ export const editorStyles = css`
     {
         accent-color: var(--primary-color, #03a9f4);
         margin: 0;
+    }
+    .adaptive-cover-registry-entity-info
+    {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
     }
     .adaptive-cover-registry-name
     {
@@ -164,12 +171,6 @@ export const editorStyles = css`
     {
         color: var(--secondary-text-color, #727272);
     }
-    @media (max-width: 480px)
-    {
-        .adaptive-cover-registry-entity { grid-template-columns: 20px minmax(0, 1fr); }
-        .adaptive-cover-registry-id { grid-column: 2; }
-    }
-
     /*  Always-visible live-data status, pinned above the collapsible sections (its own title, no <details>).
         Its title matches the collapsible sections' flex row so the icon centres on the text (a bare
         .section-title block would baseline-align the icon and sit it too high). */
