@@ -16,6 +16,7 @@ export const fi: Translations = {
   },
 
   compass: "P,KO,I,KA,E,LO,L,LU",
+  horizonCompass: { label: "Näytä kompassin kirjaimet", hint: "Näytä N/E/S/W horisontin ympärillä maastoviivasta riippumatta.", N: "Pohjoinen", E: "Itä", S: "Etelä", W: "Länsi" },
 
   cloudCover: {
     cloudLow: "Matala pilvisyys",

@@ -16,6 +16,7 @@ export const de: Translations = {
   },
 
   compass: "N,NO,O,SO,S,SW,W,NW",
+  horizonCompass: { label: "Kompassbuchstaben anzeigen", hint: "N/E/S/W am Horizont unabhängig von der Geländelinie anzeigen.", N: "Norden", E: "Osten", S: "Süden", W: "Westen" },
 
   cloudCover: {
     cloudLow: "Tiefe Bewölkung",

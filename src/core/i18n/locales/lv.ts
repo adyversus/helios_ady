@@ -16,6 +16,7 @@ export const lv: Translations = {
   },
 
   compass: "Z,ZA,A,DA,D,DR,R,ZR",
+  horizonCompass: { label: "Rādīt kompasa burtus", hint: "Rāda N/E/S/W ap horizontu neatkarīgi no reljefa līnijas.", N: "Ziemeļi", E: "Austrumi", S: "Dienvidi", W: "Rietumi" },
 
   cloudCover: {
     cloudLow: "Zems mākoņu segums",

@@ -16,6 +16,7 @@ export const hu: Translations = {
   },
 
   compass: "É,ÉK,K,DK,D,DNy,Ny,ÉNy",
+  horizonCompass: { label: "Iránytűbetűk megjelenítése", hint: "N/E/S/W megjelenítése a horizont körül, a terepvonaltól függetlenül.", N: "Észak", E: "Kelet", S: "Dél", W: "Nyugat" },
 
   cloudCover: {
     cloudLow: "Alacsony felhőzet",

@@ -16,6 +16,7 @@ export const hr: Translations = {
   },
 
   compass: "S,SI,I,JI,J,JZ,Z,SZ",
+  horizonCompass: { label: "Prikaži slova kompasa", hint: "Prikazuje N/E/S/W oko horizonta neovisno o liniji terena.", N: "Sjever", E: "Istok", S: "Jug", W: "Zapad" },
 
   cloudCover: {
     cloudLow: "Niska naoblaka",

@@ -15,6 +15,7 @@ export const fr: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SO,O,NO",
+  horizonCompass: { label: "Afficher les lettres de la boussole", hint: "Affiche N/E/S/W autour de l'horizon, indépendamment de la ligne du relief.", N: "Nord", E: "Est", S: "Sud", W: "Ouest" },
 
   cloudCover: {
     cloudLow: "Couverture basse",

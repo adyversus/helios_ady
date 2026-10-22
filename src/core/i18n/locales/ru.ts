@@ -16,6 +16,7 @@ export const ru: Translations = {
   },
 
   compass: "С,СВ,В,ЮВ,Ю,ЮЗ,З,СЗ",
+  horizonCompass: { label: "Показывать буквы компаса", hint: "Показывает N/E/S/W вокруг горизонта независимо от линии рельефа.", N: "Север", E: "Восток", S: "Юг", W: "Запад" },
 
   cloudCover: {
     cloudLow: "Нижняя облачность",

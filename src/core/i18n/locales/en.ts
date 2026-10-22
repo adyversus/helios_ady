@@ -26,6 +26,7 @@ export const en: Translations = {
   },
 
   compass: "N,NE,E,SE,S,SW,W,NW",
+  horizonCompass: { label: "Show compass letters", hint: "Show N/E/S/W around the horizon, independently of the terrain line.", N: "North", E: "East", S: "South", W: "West" },
 
   cloudCover: {
     cloudLow: "Low cloud cover",

@@ -3,6 +3,7 @@
 //"flow duration" easing that ramps animation speed with the live production rate.
 
 import type { HeliosEngine } from '../scene/helios-engine';
+import type { HorizonCompassLabel } from '../scene/horizon-compass';
 import type { DayCurveScene, DayCurvePass } from '../scene/day-curve';
 import { EQ_EPS_PX } from '../core/config/constants';
 import { arcColor } from '../core/render-kit/colors';
@@ -27,6 +28,7 @@ export interface SunScene
     home:     { x: number; y: number };
     daylight: number;
     ridge:    { x: number; y: number }[];
+    compass:  HorizonCompassLabel[];
     sunrise:  { x: number; y: number; angleRad: number; time: Date } | null;
     sunset:   { x: number; y: number; angleRad: number; time: Date } | null;
 }
@@ -190,6 +192,14 @@ function sunSceneEq(a: SunScene | null, b: SunScene | null): boolean
         {
             return false;
         }
+    }
+    if (a.compass.length !== b.compass.length
+        || a.compass.some((label, index) => label.direction !== b.compass[index].direction
+            || !pointEq(label, b.compass[index]))
+        || a.ridge.length !== b.ridge.length
+        || a.ridge.some((point, index) => !pointEq(point, b.ridge[index])))
+    {
+        return false;
     }
     //Sunrise / sunset markers must match presence and screen pos.
     if ((a.sunrise === null) !== (b.sunrise === null))

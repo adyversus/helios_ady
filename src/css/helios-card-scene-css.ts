@@ -678,6 +678,21 @@ export const heliosCardStyles = css`
     /*  Terrain-horizon ridge: a discrete distant-relief silhouette under the sun path, behind the arc + chips
         (z 3). A hazy blue-grey reads on the map without fighting the scene; the fill fades downward to nothing. */
     .horizon-ridge-svg { z-index: 3; opacity: 1; }
+    .horizon-compass-svg { z-index: 3; opacity: 1; overflow: hidden; }
+    .horizon-compass-letter
+    {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-anchor: middle;
+        dominant-baseline: central;
+        fill: var(--primary-text-color, #212121);
+        stroke: var(--card-background-color, #ffffff);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+        paint-order: stroke fill;
+    }
     /*  Contrast halo under the crest line, in the card background (white light / near-black dark), so the ridge
         detaches from any ground/building. */
     .horizon-ridge-line-outline

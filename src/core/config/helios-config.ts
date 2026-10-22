@@ -141,6 +141,7 @@ export interface HeliosConfig
     'show-detail-panel'?:       unknown;
     'show-sun-times'?:          unknown;
     'show-horizon-line'?:       unknown;
+    'show-horizon-compass'?:    unknown;
     'horizon-line-color'?:      unknown;
     //Moon arc + crescent disc: 'always' | 'night' (only while the sun is down) | 'hidden'. Cosmetic, no chip.
     'moon-display'?:            unknown;
@@ -370,6 +371,10 @@ export function showSunTimes(config: HeliosConfig | undefined): boolean
 export function showHorizonLine(config: HeliosConfig | undefined): boolean
 {
     return config?.['show-horizon-line'] !== false;
+}
+export function showHorizonCompass(config: HeliosConfig | undefined): boolean
+{
+    return config?.['show-horizon-compass'] === true;
 }
 export type MoonDisplay = 'always' | 'night' | 'hidden';
 //Moon arc + phase disc visibility. Default 'night' (only while the sun is below the horizon, when a moon is

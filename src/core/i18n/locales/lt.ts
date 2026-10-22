@@ -16,6 +16,7 @@ export const lt: Translations = {
   },
 
   compass: "Š,ŠR,R,PR,P,PV,V,ŠV",
+  horizonCompass: { label: "Rodyti kompaso raides", hint: "Rodo N/E/S/W aplink horizontą nepriklausomai nuo reljefo linijos.", N: "Šiaurė", E: "Rytai", S: "Pietūs", W: "Vakarai" },
 
   cloudCover: {
     cloudLow: "Žemas debesuotumas",

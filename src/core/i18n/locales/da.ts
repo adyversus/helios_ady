@@ -16,6 +16,7 @@ export const da: Translations = {
   },
 
   compass: "N,NØ,Ø,SØ,S,SV,V,NV",
+  horizonCompass: { label: "Vis kompasbogstaver", hint: "Vis N/E/S/W omkring horisonten uafhængigt af terrænlinjen.", N: "Nord", E: "Øst", S: "Syd", W: "Vest" },
 
   cloudCover: {
     cloudLow: "Lav skydække",
